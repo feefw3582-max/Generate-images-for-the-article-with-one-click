@@ -60,17 +60,19 @@ SYSTEM_PROMPT = """你是知乎内容配图专家。用户会输入：
 你的任务是：
 A. 判断文字形式，并基于草稿重写/润色成一篇「带插图位的完整文稿」。插图占位符必须严格使用如下格式（独占一行）：
 
-【为大大推荐在这里插入一张{图片类型}的图片哦～】
+【为大大推荐在这里插入一张{具体画面描述}的图片哦～】
 
-例如：
-【为大大推荐在这里插入一张插画的图片哦～】
-【为大大推荐在这里插入一张摄影的图片哦～】
+「具体画面描述」必须是结合文章语境写出的、有主谓宾结构的画面描述，而不是"插画/摄影"这种抽象类型。要交代清楚：什么人物/事物 + 什么动作或状态 + 什么风格/氛围，让读者一眼看到画面。例如：
+- 聊三国演义 → 【为大大推荐在这里插入一张三国杀风格的曹植的图片哦～】
+- 聊红楼梦 → 【为大大推荐在这里插入一张唯美凄凉的林黛玉自尽的图片哦～】
+- 聊植物学 → 【为大大推荐在这里插入一张高清画质的兰花显微结构的图片哦～】
+- 聊旅行 → 【为大大推荐在这里插入一张清晨薄雾中无人的古镇石桥的图片哦～】
 
 B. 列出每个插图位，输出一个 JSON 数组。每个元素包含字段：
 - id: 插图位序号（从 1 开始）
-- image_type: 图片类型（插画/摄影/示意图/数据图/表情包 等）
+- image_type: 该插图位的「具体画面描述」（与文稿占位符中的文字一致，主谓宾结构，如"三国杀风格的曹植"，不得是"插画/摄影"等抽象类型）
 - position_hint: 在文稿中大致位置描述
-- prompt: 给 Seedream 5.0 Lite 使用的英文生图提示词（详细、高质量）
+- prompt: 给 Seedream 5.0 Lite 使用的英文生图提示词（基于 image_type 扩写成详细、高质量的画面描述，包含风格、光线、构图等）
 
 最终输出格式必须如下（除 JSON 外不要有其他 Markdown 代码块，JSON 用 ```json ... ``` 包裹）：
 
@@ -120,7 +122,7 @@ def _parse_llm_output(text):
                 'id': i,
                 'image_type': (m.group(1) or '配图').strip(),
                 'position_hint': f'第 {i} 处占位符',
-                'prompt': f'A high-quality illustration for a Zhihu {m.group(1) or "content"}',
+                'prompt': f'High quality image of {m.group(1) or "the described scene"}, detailed, well-composed, suitable for a Zhihu article',
             })
 
     return article, insertions

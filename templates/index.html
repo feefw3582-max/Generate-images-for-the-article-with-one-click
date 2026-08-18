@@ -103,22 +103,7 @@
     <p class="subtitle">不依赖 Dify，本地直连 DeepSeek + Seedream，快速验证完整流程。</p>
 
     <div class="card">
-      <div class="card-title">① API 配置</div>
-      <div class="row">
-        <div class="field">
-          <label>DeepSeek API Key</label>
-          <input type="text" id="deepseek_key" placeholder="或设置环境变量 DEEPSEEK_API_KEY">
-        </div>
-        <div class="field">
-          <label>Seedream API Key</label>
-          <input type="text" id="seedream_key" placeholder="或设置环境变量 SEEDREAM_API_KEY">
-        </div>
-      </div>
-      <p class="hint">Key 仅用于本次本地请求，不会写入文件。</p>
-    </div>
-
-    <div class="card">
-      <div class="card-title">② 第一轮：输入草稿</div>
+      <div class="card-title">① 第一轮：输入草稿</div>
       <div class="row">
         <div class="field">
           <label>文字形式</label>
@@ -140,7 +125,7 @@
 
     <div id="step2" class="hidden">
       <div class="card">
-        <div class="card-title">③ 分析结果</div>
+        <div class="card-title">② 分析结果</div>
         <label>带占位符的文稿</label>
         <div id="article_output" class="output"></div>
 
@@ -149,7 +134,7 @@
       </div>
 
       <div class="card">
-        <div class="card-title">④ 第二轮：选择配图方式</div>
+        <div class="card-title">③ 第二轮：选择配图方式</div>
         <div class="actions">
           <button id="btn_gen">🎨 自动生图（Seedream）</button>
           <button class="secondary" id="btn_upload_trigger">📤 上传自己的图片</button>
@@ -186,8 +171,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             form: document.getElementById('form').value,
-            draft: document.getElementById('draft').value,
-            deepseek_key: document.getElementById('deepseek_key').value
+            draft: document.getElementById('draft').value
           })
         });
         const data = await res.json();
@@ -218,7 +202,7 @@
         const res = await fetch('/api/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionId, seedream_key: document.getElementById('seedream_key').value })
+          body: JSON.stringify({ session_id: sessionId })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '生图失败');

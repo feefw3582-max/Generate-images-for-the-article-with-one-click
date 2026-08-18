@@ -1,0 +1,1322 @@
+app:
+  description: 知乎文章/回答/想法智能配图助手（多轮交互版）。第一轮：用户输入文字草稿 → AI 识别形式（文章/回答/想法）与题材，输出「带插图位的完整文稿」（占位格式：回车【为大大推荐在这里插入一张xxxx的图片哦～】回车）以及每个插图位的生图提示词卡片；第二轮：用户三选一——回复「自动生图」用 Seedream 5.0 Lite 批量生图、直接在对话框上传自备图片、或回复暗号「charli」触发调试路由（不生成/上传任何图片，直接用调试占位标记替换文稿中的占位符，用于检验前置链路是否运行正确）；工作流收到图片后自动把占位符替换为图片，回传最终成稿。LLM 使用 DeepSeek：导入后请在「内容分析与插图规划」节点重新选择你自己的 DeepSeek V4 Flash 模型；Seedream 的 API 地址 / API Key / 模型 ID 请在工作流「设置 → 环境变量」中配置。
+  icon: 📝
+  icon_background: '#FFEAD5'
+  mode: advanced-chat
+  name: 知乎智能配图助手（交互版 v5·含 charli 调试路由）
+  use_icon_as_answer_icon: false
+kind: app
+version: 0.1.5
+workflow:
+  conversation_variables:
+    - description: 带占位符的完整文稿（分析完成后写入，用于第二轮替换占位符）
+      id: 4e4caeb0-e6ab-4d1d-9433-d590b716a9f3
+      name: final_article
+      value: ''
+      value_type: string
+    - description: 插图位列表 JSON（id/image_type/position_hint/prompt），分析完成后写入
+      id: c4f804d1-3cd4-4cb7-9c20-274c4ccbd817
+      name: insertions_json
+      value: ''
+      value_type: string
+  environment_variables:
+    - id: env-seedream-api-url
+      name: seedream_api_url
+      value: https://ark.cn-beijing.volces.com/api/v3/images/generations
+      value_type: string
+    - id: env-seedream-api-key
+      name: seedream_api_key
+      value: ''
+      value_type: secret
+    - id: env-seedream-model
+      name: seedream_model
+      value: doubao-seedream-5-0-260128
+      value_type: string
+  features:
+    file_upload:
+      allowed_file_types:
+        - image
+      allowed_file_upload_methods:
+        - local_file
+        - remote_url
+      enabled: true
+      fileUploadConfig:
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_size_limit: 10
+        workflow_file_upload_limit: 10
+      image:
+        enabled: true
+        number_limits: 10
+        transfer_methods:
+          - local_file
+          - remote_url
+      number_limits: 10
+    opening_statement: 你好！我是你的知乎配图助手 📝 请把你的文字草稿发给我（文章 / 回答 / 想法均可）。我会先输出「带插图位的完整文稿」和每个插图位的生图提示词；之后你可以回复「自动生图」让我用 AI 配图，或直接上传你自己的图片。
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions:
+      - 帮我分析一篇关于城市通勤的文章
+      - 帮我分析一段关于养猫日常的想法
+    suggested_questions_after_answer:
+      enabled: true
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+      - data:
+          isInIteration: false
+          sourceType: start
+          targetType: code
+        id: start-source-code-route-target
+        source: start
+        sourceHandle: source
+        target: code-route
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: code
+          targetType: if-else
+        id: code-route-source-ifelse-route1-target
+        source: code-route
+        sourceHandle: source
+        target: ifelse-route1
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: if-else
+          targetType: llm
+        id: ifelse-route1-true-llm-analyze-target
+        source: ifelse-route1
+        sourceHandle: 'true'
+        target: llm-analyze
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: llm
+          targetType: code
+        id: llm-analyze-source-code-store-target
+        source: llm-analyze
+        sourceHandle: source
+        target: code-store
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: code
+          targetType: assigner
+        id: code-store-source-assigner-store-target
+        source: code-store
+        sourceHandle: source
+        target: assigner-store
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: assigner
+          targetType: answer
+        id: assigner-store-source-answer-planned-target
+        source: assigner-store
+        sourceHandle: source
+        target: answer-planned
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: if-else
+          targetType: if-else
+        id: ifelse-route1-false-ifelse-route2-target
+        source: ifelse-route1
+        sourceHandle: 'false'
+        target: ifelse-route2
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: if-else
+          targetType: code
+        id: ifelse-route2-true-code-build-prompt-target
+        source: ifelse-route2
+        sourceHandle: 'true'
+        target: code-build-prompt
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: code
+          targetType: http-request
+        id: code-build-prompt-source-http-seedream-target
+        source: code-build-prompt
+        sourceHandle: source
+        target: http-seedream
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: http-request
+          targetType: code
+        id: http-seedream-source-code-parse-images-target
+        source: http-seedream
+        sourceHandle: source
+        target: code-parse-images
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: code
+          targetType: variable-aggregator
+        id: code-parse-images-source-merge-images-target
+        source: code-parse-images
+        sourceHandle: source
+        target: merge-images
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: if-else
+          targetType: if-else
+        id: ifelse-route2-false-ifelse-route3-target
+        source: ifelse-route2
+        sourceHandle: 'false'
+        target: ifelse-route3
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: if-else
+          targetType: code
+        id: ifelse-route3-true-code-files2md-target
+        source: ifelse-route3
+        sourceHandle: 'true'
+        target: code-files2md
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: code
+          targetType: variable-aggregator
+        id: code-files2md-source-merge-images-target
+        source: code-files2md
+        sourceHandle: source
+        target: merge-images
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: if-else
+          targetType: if-else
+        id: ifelse-route3-false-ifelse-route-debug-target
+        source: ifelse-route3
+        sourceHandle: 'false'
+        target: ifelse-route-debug
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: if-else
+          targetType: code
+        id: ifelse-route-debug-true-code-debug-insert-target
+        source: ifelse-route-debug
+        sourceHandle: 'true'
+        target: code-debug-insert
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: code
+          targetType: answer
+        id: code-debug-insert-source-answer-debug-target
+        source: code-debug-insert
+        sourceHandle: source
+        target: answer-debug
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: if-else
+          targetType: answer
+        id: ifelse-route-debug-false-answer-unclear-target
+        source: ifelse-route-debug
+        sourceHandle: 'false'
+        target: answer-unclear
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: variable-aggregator
+          targetType: code
+        id: merge-images-source-code-insert-target
+        source: merge-images
+        sourceHandle: source
+        target: code-insert
+        targetHandle: target
+        type: custom
+        zIndex: 0
+      - data:
+          isInIteration: false
+          sourceType: code
+          targetType: answer
+        id: code-insert-source-answer-final-target
+        source: code-insert
+        sourceHandle: source
+        target: answer-final
+        targetHandle: target
+        type: custom
+        zIndex: 0
+    nodes:
+      - data:
+          desc: ''
+          selected: false
+          title: 开始
+          type: start
+          variables: []
+        height: 90
+        id: start
+        position:
+          x: 30
+          y: 340
+        positionAbsolute:
+          x: 30
+          y: 340
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          code: |-
+            def main(query: str = '', files: list = None, final_article: str = '') -> dict:
+                q = (query or '').strip()
+                has_files = bool(files)
+                has_article = bool((final_article or '').strip())
+
+                # 1. 还没有带占位符的文稿 → 本轮是首次输入，进入分析
+                if not has_article:
+                    return {'route': 'analyze'}
+                # 2. 调试暗号：charli → 视为已提供图片，直接走占位符替换（不生图、不传图）
+                if 'charli' in q.lower():
+                    return {'route': 'debug'}
+                # 3. 已分析且本轮带了图片附件 → 用户回传图片
+                if has_files:
+                    return {'route': 'upload'}
+                # 4. 已分析且消息包含生图意图 → 自动生图
+                if any(k in q for k in ('生图', '生成图片', '自动配图', '生成图', '自动生', '画图')):
+                    return {'route': 'gen'}
+                # 5. 其他情况 → 提示用户二选一
+                return {'route': 'unclear'}
+          code_language: python3
+          desc: ''
+          outputs:
+            route:
+              children: null
+              type: string
+          selected: false
+          title: 会话状态路由
+          type: code
+          variables:
+            - value_selector:
+                - sys
+                - query
+              variable: query
+            - value_selector:
+                - sys
+                - files
+              variable: files
+            - value_selector:
+                - conversation
+                - final_article
+              variable: final_article
+        height: 54
+        id: code-route
+        position:
+          x: 334
+          y: 340
+        positionAbsolute:
+          x: 334
+          y: 340
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          cases:
+            - case_id: 'true'
+              conditions:
+                - comparison_operator: is
+                  id: cond-route-analyze
+                  value: analyze
+                  varType: string
+                  variable_selector:
+                    - code-route
+                    - route
+              id: 'true'
+              logical_operator: and
+          desc: ''
+          selected: false
+          title: 路由1·是否首次分析
+          type: if-else
+        height: 126
+        id: ifelse-route1
+        position:
+          x: 638
+          y: 340
+        positionAbsolute:
+          x: 638
+          y: 340
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          context:
+            enabled: false
+            variable_selector: []
+          desc: ''
+          model:
+            completion_params:
+              max_tokens: 4096
+              temperature: 0.7
+            mode: chat
+            name: deepseek-chat
+            provider: deepseek
+          prompt_template:
+            - id: sys-analyze
+              role: system
+              text: |-
+                你是一位资深的知乎内容运营与 AI 配图专家。
+                你的任务：阅读用户提供的知乎文字草稿，完成三件事。
+
+                一、识别内容形式（必须是以下三种之一）：
+                - 文章：篇幅较长、有完整结构与分段的深度内容；
+                - 回答：针对某个具体问题的观点性回复，通常一到几段；
+                - 想法：短小的个人表达、随感、动态（通常 200 字以内）。
+
+                二、识别题材（用一句话概括，如：职场成长、情感、科技数码、历史人文、美食生活、社会热点评论等）并给出统一视觉风格建议（如：扁平插画、写实摄影、国潮风、3D 渲染、手绘速写等）。
+
+                三、规划插图位并输出两样东西：
+                1. article_with_placeholders：把用户的整篇草稿原文保留（可以适度润色但不得改变原意、不得删减段落），在每个适合插图的位置插入占位符。占位符必须严格使用这个格式（前后各带一个换行）：
+                【为大大推荐在这里插入一张{图片类型}的图片哦～】
+                例如：【为大大推荐在这里插入一张插画的图片哦～】
+                适合插图的位置包括：段落转折处、核心论点旁、具体举例/数据处、情绪高点、结尾升华处。不要为了插图而插图。想法形式 1 处即可，文章形式最多 5 处。
+                占位符中的「图片类型」必须与 insertions 数组中对应插图位的 image_type 完全一致；占位符数量必须与 insertions 数组长度一致。
+                2. insertions：为每个插图位输出详细生图提示词：
+                - image_type：图片类型（插画 / 摄影 / 信息图 / 示意图 / 海报）；
+                - position_hint：用自然语言描述插图位置（如：开头、第二段之后、结尾升华段之前）；
+                - prompt：详细生图提示词，包含主体、场景、风格、配色、构图、光线、氛围，中英结合，可直接用于 Seedream 文生图模型；所有插图位保持统一视觉风格。
+
+                只输出一个 JSON 对象，不要输出任何其他文字、解释或 Markdown 代码块。JSON 结构如下：
+                {
+                  "format": "文章|回答|想法",
+                  "theme": "题材一句话概述",
+                  "style_suggestion": "统一视觉风格建议",
+                  "article_with_placeholders": "完整文稿（含占位符）",
+                  "insertions": [
+                    {
+                      "id": 1,
+                      "image_type": "插画",
+                      "position_hint": "第二段之后",
+                      "prompt": "生图提示词"
+                    }
+                  ]
+                }
+            - id: user-analyze
+              role: user
+              text: |-
+                以下是用户要发布的知乎文字草稿，请分析：
+
+                {{#sys.query#}}
+          selected: false
+          title: 内容分析与插图规划
+          type: llm
+          variables: []
+          vision:
+            enabled: false
+        height: 98
+        id: llm-analyze
+        position:
+          x: 942
+          y: 200
+        positionAbsolute:
+          x: 942
+          y: 200
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          code: |-
+            import json
+
+            def main(llm_raw: str = '') -> dict:
+                raw = (llm_raw or '').strip()
+                # 清理 LLM 输出：去 Markdown 围栏，提取 {} 范围
+                lines = raw.splitlines()
+                if lines and lines[0].strip().startswith('```'):
+                    lines = lines[1:]
+                if lines and lines[-1].strip() == '```':
+                    lines = lines[:-1]
+                json_str = '\n'.join(lines)
+                start = json_str.find('{')
+                end = json_str.rfind('}')
+                if start != -1 and end > start:
+                    json_str = json_str[start:end + 1]
+
+                data = {}
+                parse_error = ''
+                try:
+                    data = json.loads(json_str)
+                except Exception as e:
+                    parse_error = str(e)
+                if not isinstance(data, dict):
+                    data = {}
+                    if not parse_error:
+                        parse_error = '解析结果不是 JSON 对象'
+
+                fmt = str(data.get('format', '') or '文章')
+                if fmt not in ('文章', '回答', '想法'):
+                    fmt = '文章'
+                theme = str(data.get('theme', '') or '未识别')
+                style = str(data.get('style_suggestion', '') or '')
+                article = str(data.get('article_with_placeholders', '') or '')
+
+                insertions = []
+                raw_ins = data.get('insertions')
+                if isinstance(raw_ins, list):
+                    for i, item in enumerate(raw_ins):
+                        if not isinstance(item, dict):
+                            continue
+                        insertions.append({
+                            'id': i + 1,
+                            'image_type': str(item.get('image_type', '') or '插画').strip(),
+                            'position_hint': str(item.get('position_hint', '') or '').strip(),
+                            'prompt': str(item.get('prompt', '') or '').strip(),
+                        })
+                insertions_json = json.dumps(insertions, ensure_ascii=False)
+
+                # 生成 Markdown 报告：每个插图位一个独立「卡片框」
+                rep = ['## 内容分析']
+                rep.append('- 形式：%s' % fmt)
+                rep.append('- 题材：%s' % theme)
+                if style:
+                    rep.append('- 统一风格建议：%s' % style)
+                rep.append('')
+                rep.append('## 插图位提示词（共 %d 处）' % len(insertions))
+                if not insertions:
+                    rep.append('未能从草稿中识别出合适的插图位，请检查草稿内容。')
+                for ins in insertions:
+                    rep.append('')
+                    rep.append('### 📌 插图位 %d · %s · %s' % (ins['id'], ins['image_type'], ins['position_hint'] or '位置待定'))
+                    rep.append('> 提示词：%s' % ins['prompt'])
+                rep.append('')
+                rep.append('---')
+                rep.append('**接下来二选一：**')
+                rep.append('1. 回复 **「自动生图」** —— 我用 Seedream 5.0 Lite 按上方顺序批量生成图片并自动插入；')
+                rep.append('2. 直接 **上传你的图片** —— 点击输入框的上传按钮，按插图位顺序选择图片，我会自动替换对应占位符。')
+                report = '\n'.join(rep)
+
+                return {
+                    'format': fmt,
+                    'theme': theme,
+                    'style_suggestion': style,
+                    'final_article': article,
+                    'insertions_json': insertions_json,
+                    'insertion_count': len(insertions),
+                    'report': report,
+                    'parse_error': parse_error,
+                }
+          code_language: python3
+          desc: ''
+          outputs:
+            final_article:
+              children: null
+              type: string
+            format:
+              children: null
+              type: string
+            insertion_count:
+              children: null
+              type: number
+            insertions_json:
+              children: null
+              type: string
+            parse_error:
+              children: null
+              type: string
+            report:
+              children: null
+              type: string
+            style_suggestion:
+              children: null
+              type: string
+            theme:
+              children: null
+              type: string
+          selected: false
+          title: 解析分析结果并生成文稿
+          type: code
+          variables:
+            - value_selector:
+                - llm-analyze
+                - text
+              variable: llm_raw
+        height: 54
+        id: code-store
+        position:
+          x: 1246
+          y: 200
+        positionAbsolute:
+          x: 1246
+          y: 200
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          desc: ''
+          items:
+            - input_type: variable
+              operation: over-write
+              value: ''
+              value_selector:
+                - code-store
+                - final_article
+              variable_selector:
+                - conversation
+                - final_article
+            - input_type: variable
+              operation: over-write
+              value: ''
+              value_selector:
+                - code-store
+                - insertions_json
+              variable_selector:
+                - conversation
+                - insertions_json
+          selected: false
+          title: 保存分析结果到会话
+          type: assigner
+        height: 118
+        id: assigner-store
+        position:
+          x: 1550
+          y: 200
+        positionAbsolute:
+          x: 1550
+          y: 200
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          answer: |-
+            ## ✅ 分析完成 · {{#format#}} / {{#theme#}}
+
+            ### 📄 带插图位的文稿（已覆盖原文，占位符处等待插入图片）
+            {{#final_article#}}
+
+            {{#report#}}
+
+            ---
+
+            ### 🎯 下一步，请二选一：
+
+            1. 回复 **「自动生图」** —— 我用 Seedream 5.0 Lite 按顺序生成图片，并自动替换到上面的占位符位置；
+            2. 直接 **上传你自己的图片** —— 点击输入框的上传按钮，按插图位顺序选择图片，我会自动替换占位符。
+          desc: ''
+          selected: false
+          title: 输出文稿与插图位提示词
+          type: answer
+          variables:
+            - value_selector:
+                - code-store
+                - format
+              variable: format
+            - value_selector:
+                - code-store
+                - theme
+              variable: theme
+            - value_selector:
+                - code-store
+                - final_article
+              variable: final_article
+            - value_selector:
+                - code-store
+                - report
+              variable: report
+        height: 116
+        id: answer-planned
+        position:
+          x: 1854
+          y: 200
+        positionAbsolute:
+          x: 1854
+          y: 200
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          cases:
+            - case_id: 'true'
+              conditions:
+                - comparison_operator: is
+                  id: cond-route-gen
+                  value: gen
+                  varType: string
+                  variable_selector:
+                    - code-route
+                    - route
+              id: 'true'
+              logical_operator: and
+          desc: ''
+          selected: false
+          title: 路由2·是否自动生图
+          type: if-else
+        height: 126
+        id: ifelse-route2
+        position:
+          x: 942
+          y: 480
+        positionAbsolute:
+          x: 942
+          y: 480
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          code: |-
+            import json
+
+            def main(insertions_json: str = '') -> dict:
+                try:
+                    ins = json.loads(insertions_json or '[]')
+                except Exception:
+                    ins = []
+                if not isinstance(ins, list) or not ins:
+                    master = '请根据知乎内容生成一张合适的配图。'
+                else:
+                    lines = ['请依次生成 %d 张图片，编号与描述一一对应，整体视觉风格保持统一：' % len(ins)]
+                    for i, it in enumerate(ins):
+                        if not isinstance(it, dict):
+                            continue
+                        ins_id = it.get('id', i + 1)
+                        hint = str(it.get('position_hint', '') or '未知位置')
+                        prompt = str(it.get('prompt', '') or '')
+                        lines.append('图%d（%s）：%s' % (ins_id, hint, prompt))
+                    master = '\n'.join(lines)
+
+                return {
+                    'master_prompt': master,
+                    'seedream_prompt_escaped': json.dumps(master, ensure_ascii=False),
+                }
+          code_language: python3
+          desc: ''
+          outputs:
+            master_prompt:
+              children: null
+              type: string
+            seedream_prompt_escaped:
+              children: null
+              type: string
+          selected: false
+          title: 组装批量生图提示词
+          type: code
+          variables:
+            - value_selector:
+                - conversation
+                - insertions_json
+              variable: insertions_json
+        height: 54
+        id: code-build-prompt
+        position:
+          x: 1246
+          y: 380
+        positionAbsolute:
+          x: 1246
+          y: 380
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          authorization:
+            config:
+              api_key: 'Bearer {{#env.seedream_api_key#}}'
+              header: ''
+              type: bearer
+            type: api-key
+          body:
+            data: '{"model": "{{#env.seedream_model#}}", "prompt": {{#code-build-prompt.seedream_prompt_escaped#}}, "size": "2K", "response_format": "url", "output_format": "png", "watermark": false, "sequential_image_generation": "auto"}'
+            type: json
+          desc: ''
+          headers: 'Content-Type: application/json'
+          method: post
+          params: ''
+          selected: false
+          timeout:
+            max_connect_timeout: 10
+            max_read_timeout: 120
+            max_write_timeout: 10
+          title: 调用 Seedream 5.0 Lite 生图
+          type: http-request
+          url: '{{#env.seedream_api_url#}}'
+          variables: []
+        height: 98
+        id: http-seedream
+        position:
+          x: 1550
+          y: 380
+        positionAbsolute:
+          x: 1550
+          y: 380
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          code: |-
+            import json
+
+            def main(http_response: str = '') -> dict:
+                raw = (http_response or '').strip()
+                images = []
+                log = []
+
+                if not raw:
+                    log.append('HTTP 响应为空。')
+                    return {'seed_images': images, 'seed_parse_log': '\n'.join(log)}
+
+                try:
+                    obj = json.loads(raw)
+                except Exception as e:
+                    log.append('HTTP 响应不是合法 JSON：%s' % e)
+                    log.append('响应前 300 字符：%s' % raw[:300])
+                    return {'seed_images': images, 'seed_parse_log': '\n'.join(log)}
+
+                def collect_urls(value):
+                    found = []
+                    if isinstance(value, str):
+                        s = value.strip()
+                        if s.startswith('http') or s.startswith('data:'):
+                            found.append(s)
+                    elif isinstance(value, dict):
+                        for k in ('url', 'image_url', 'src', 'b64_json'):
+                            if k in value and value[k]:
+                                if k == 'b64_json':
+                                    found.append('data:image/png;base64,' + str(value[k]).strip())
+                                else:
+                                    found.append(str(value[k]).strip())
+                    elif isinstance(value, list):
+                        for item in value:
+                            found.extend(collect_urls(item))
+                    return found
+
+                if isinstance(obj, dict):
+                    if 'data' in obj:
+                        images.extend(collect_urls(obj['data']))
+                    if not images:
+                        for key in ('images', 'image', 'result', 'urls', 'output'):
+                            if key in obj:
+                                images.extend(collect_urls(obj[key]))
+                        if not images:
+                            images.extend(collect_urls(obj))
+                elif isinstance(obj, list):
+                    images.extend(collect_urls(obj))
+
+                seen = set()
+                clean = []
+                for u in images:
+                    u = (u or '').strip()
+                    if u and u not in seen:
+                        seen.add(u)
+                        clean.append(u)
+
+                log.append('从响应中解析到 %d 张图片。' % len(clean))
+                if not clean:
+                    log.append('未能从响应中提取图片 URL，请检查 Seedream API 返回格式（期望 OpenAI 风格 data[].url 或 data[].b64_json）。')
+                return {'seed_images': clean, 'seed_parse_log': '\n'.join(log)}
+          code_language: python3
+          desc: ''
+          outputs:
+            seed_images:
+              children: null
+              type: array[string]
+            seed_parse_log:
+              children: null
+              type: string
+          selected: false
+          title: 解析 Seedream 响应
+          type: code
+          variables:
+            - value_selector:
+                - http-seedream
+                - body
+              variable: http_response
+        height: 54
+        id: code-parse-images
+        position:
+          x: 1854
+          y: 380
+        positionAbsolute:
+          x: 1854
+          y: 380
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          cases:
+            - case_id: 'true'
+              conditions:
+                - comparison_operator: is
+                  id: cond-route-upload
+                  value: upload
+                  varType: string
+                  variable_selector:
+                    - code-route
+                    - route
+              id: 'true'
+              logical_operator: and
+          desc: ''
+          selected: false
+          title: 路由3·是否上传图片
+          type: if-else
+        height: 126
+        id: ifelse-route3
+        position:
+          x: 1246
+          y: 580
+        positionAbsolute:
+          x: 1246
+          y: 580
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          code: |-
+            def main(uploaded_files: list = None) -> dict:
+                files = uploaded_files or []
+                urls = []
+                log = []
+
+                if not files:
+                    log.append('未收到上传的图片文件。')
+                    return {'upload_images': urls, 'upload_log': '\n'.join(log)}
+
+                for i, f in enumerate(files):
+                    if not isinstance(f, dict):
+                        log.append('第 %d 个文件格式异常，已跳过。' % (i + 1))
+                        continue
+                    url = ''
+                    for k in ('url', 'URL', 'src', 'image_url', 'remote_url'):
+                        if f.get(k):
+                            url = str(f[k]).strip()
+                            break
+                    if not url and isinstance(f.get('file'), dict):
+                        nested = f['file']
+                        for k in ('url', 'URL', 'src', 'remote_url'):
+                            if nested.get(k):
+                                url = str(nested[k]).strip()
+                                break
+                    if url:
+                        urls.append(url)
+                        log.append('第 %d 张图片已读取。' % (i + 1))
+                    else:
+                        log.append('第 %d 个文件未解析到 URL，已跳过。' % (i + 1))
+
+                if not urls:
+                    log.append('未能从上传文件中提取图片地址。')
+                return {'upload_images': urls, 'upload_log': '\n'.join(log)}
+          code_language: python3
+          desc: ''
+          outputs:
+            upload_images:
+              children: null
+              type: array[string]
+            upload_log:
+              children: null
+              type: string
+          selected: false
+          title: 读取用户上传图片
+          type: code
+          variables:
+            - value_selector:
+                - sys
+                - files
+              variable: uploaded_files
+        height: 54
+        id: code-files2md
+        position:
+          x: 1550
+          y: 580
+        positionAbsolute:
+          x: 1550
+          y: 580
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          answer: |-
+            ## 🤔 没太听懂你的意思
+
+            如果你已经看过我给出的「带插图位文稿」和「提示词卡片」，请直接：
+
+            1. 回复 **「自动生图」** —— 我用 Seedream 5.0 Lite 按顺序生成图片并自动插入；
+            2. 直接 **上传图片** —— 点击输入框的上传按钮，按插图位顺序选择图片，我会自动替换占位符。
+          desc: ''
+          selected: false
+          title: 未识别意图·再次提示二选一
+          type: answer
+          variables: []
+        height: 116
+        id: answer-unclear
+        position:
+          x: 1854
+          y: 580
+        positionAbsolute:
+          x: 1854
+          y: 580
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          cases:
+            - case_id: 'true'
+              conditions:
+                - comparison_operator: is
+                  id: cond-route-debug
+                  value: debug
+                  varType: string
+                  variable_selector:
+                    - code-route
+                    - route
+              id: 'true'
+              logical_operator: and
+          desc: 调试路由：用户发送暗号 charli 时触发，模拟「已提供图片」直接替换占位符
+          selected: false
+          title: 路由4·是否调试暗号charli
+          type: if-else
+        height: 126
+        id: ifelse-route-debug
+        position:
+          x: 1550
+          y: 740
+        positionAbsolute:
+          x: 1550
+          y: 740
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          code: |-
+            import json
+            import re
+
+            def main(final_article: str = '', insertions_json: str = '') -> dict:
+                text = final_article or ''
+                try:
+                    ins = json.loads(insertions_json or '[]')
+                except Exception:
+                    ins = []
+                if not isinstance(ins, list):
+                    ins = []
+                log = []
+
+                pattern = re.compile(r'\n*\s*【为大大推荐在这里插入一张([^】]*)的图片哦～】\s*\n*')
+
+                out = []
+                pos = 0
+                idx = 0
+                for m in pattern.finditer(text):
+                    out.append(text[pos:m.start()])
+                    img_type = (m.group(1) or '未知类型').strip()
+                    hint = ''
+                    if idx < len(ins) and isinstance(ins[idx], dict):
+                        hint = str(ins[idx].get('position_hint', '') or '')
+                    label = '🖼️【调试占位图片 %d：%s%s】' % (idx + 1, img_type, ('·' + hint) if hint else '')
+                    out.append('\n\n%s\n\n' % label)
+                    log.append('占位符 %d（%s）→ 已替换为调试标记。' % (idx + 1, img_type))
+                    pos = m.end()
+                    idx += 1
+                out.append(text[pos:])
+
+                if idx == 0:
+                    log.append('⚠️ 未在会话文稿中找到任何占位符！说明第一轮「分析→保存文稿」环节可能未正常运行。')
+
+                if idx != len(ins):
+                    log.append('⚠️ 占位符数量（%d）与插图位数量（%d）不一致，请检查第一轮 LLM 输出的 article_with_placeholders 与 insertions 是否匹配。' % (idx, len(ins)))
+                else:
+                    log.append('✅ 占位符数量与插图位数量一致（%d 处），第一轮分析与保存链路正常。' % idx)
+
+                log.append('✅ 调试路由命中：会话变量读取、路由分发、占位符替换逻辑均已执行。')
+
+                result = (
+                    '## 🧪 调试路由命中（暗号：charli）\n\n'
+                    '已按「视为已提供图片」处理：未调用生图、未读取上传文件，直接用调试占位标记替换了文稿中的占位符。\n\n'
+                    '### 📄 替换后的文稿（调试标记版）\n\n'
+                    '{article}\n\n'
+                    '---\n\n'
+                    '<details>\n'
+                    '<summary>调试日志（找到 {placeholder_count} 个占位符 / {insertion_count} 个插图位）</summary>\n\n'
+                    '{log}\n'
+                    '</details>\n\n'
+                    '✅ 如果上方文稿中出现了「🖼️【调试占位图片 N：…】」标记，说明第一轮分析 → 会话变量保存 → 路由分发 → 占位符替换整条前置链路运行正常。\n'
+                    '如需真实配图：回复 **「自动生图」** 或直接 **上传图片** 即可。\n'
+                ).format(article=''.join(out), placeholder_count=idx, insertion_count=len(ins), log='\n'.join(log))
+
+                return {'debug_output': result}
+          code_language: python3
+          desc: 调试分支：不生图不传图，直接把文稿中的占位符替换为「🖼️ 调试占位图片 N」标记
+          outputs:
+            debug_output:
+              children: null
+              type: string
+          selected: false
+          title: 调试·替换占位符为标记
+          type: code
+          variables:
+            - value_selector:
+                - conversation
+                - final_article
+              variable: final_article
+            - value_selector:
+                - conversation
+                - insertions_json
+              variable: insertions_json
+        height: 54
+        id: code-debug-insert
+        position:
+          x: 1854
+          y: 860
+        positionAbsolute:
+          x: 1854
+          y: 860
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          answer: '{{#debug_output#}}'
+          desc: ''
+          selected: false
+          title: 输出调试结果
+          type: answer
+          variables:
+            - value_selector:
+                - code-debug-insert
+                - debug_output
+              variable: debug_output
+        height: 54
+        id: answer-debug
+        position:
+          x: 2158
+          y: 860
+        positionAbsolute:
+          x: 2158
+          y: 860
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          desc: ''
+          output_type: array[string]
+          selected: false
+          title: 汇合图片
+          type: variable-aggregator
+          variables:
+            - - code-parse-images
+              - seed_images
+            - - code-files2md
+              - upload_images
+        height: 139
+        id: merge-images
+        position:
+          x: 2158
+          y: 480
+        positionAbsolute:
+          x: 2158
+          y: 480
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          code: |-
+            import json
+            import re
+
+            def main(final_article: str = '', insertions_json: str = '', images: list = None) -> dict:
+                text = final_article or ''
+                try:
+                    ins = json.loads(insertions_json or '[]')
+                except Exception:
+                    ins = []
+                if not isinstance(ins, list):
+                    ins = []
+                imgs = images or []
+                log = []
+
+                if not text.strip():
+                    log.append('文稿为空，未做任何替换。')
+                    return {'final_article': text, 'insert_log': '\n'.join(log)}
+
+                # 占位符格式：回车【为大大推荐在这里插入一张xxxx的图片哦～】回车
+                pattern = re.compile(r'\n*\s*【为大大推荐在这里插入一张[^】]*的图片哦～】\s*\n*')
+
+                out = []
+                pos = 0
+                idx = 0
+                found = False
+                for m in pattern.finditer(text):
+                    found = True
+                    out.append(text[pos:m.start()])
+                    ins_id = idx + 1
+                    if idx < len(ins) and isinstance(ins[idx], dict) and ins[idx].get('id'):
+                        ins_id = ins[idx]['id']
+                    if idx < len(imgs):
+                        out.append('\n\n![插图%d](%s)\n\n' % (ins_id, imgs[idx]))
+                        log.append('插图位 %d 已替换为图片。' % ins_id)
+                    else:
+                        out.append('\n\n> ⚠️ 插图位 %d 暂未获得图片，请回复「自动生图」或重新上传图片。\n\n' % ins_id)
+                        log.append('插图位 %d 缺少图片，保留占位提示。' % ins_id)
+                    pos = m.end()
+                    idx += 1
+                out.append(text[pos:])
+
+                if not found:
+                    log.append('未在文稿中找到占位符（格式：回车【为大大推荐在这里插入一张xxxx的图片哦～】回车），未做替换。')
+
+                return {'final_article': ''.join(out), 'insert_log': '\n'.join(log)}
+          code_language: python3
+          desc: ''
+          outputs:
+            final_article:
+              children: null
+              type: string
+            insert_log:
+              children: null
+              type: string
+          selected: false
+          title: 替换占位符为图片
+          type: code
+          variables:
+            - value_selector:
+                - conversation
+                - final_article
+              variable: final_article
+            - value_selector:
+                - conversation
+                - insertions_json
+              variable: insertions_json
+            - value_selector:
+                - merge-images
+                - output
+              variable: images
+        height: 54
+        id: code-insert
+        position:
+          x: 2462
+          y: 480
+        positionAbsolute:
+          x: 2462
+          y: 480
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+      - data:
+          answer: |-
+            ## 🎉 配图完成！
+
+            ### 📄 最终文稿（占位符已替换为图片）
+            {{#final_article#}}
+
+            ---
+            <details>
+            <summary>插入日志</summary>
+
+            {{#insert_log#}}
+            </details>
+
+            💡 你可以复制上面的最终文稿直接发布到知乎。如果想重新配图，回复「自动生图」或重新上传图片即可。
+          desc: ''
+          selected: false
+          title: 输出最终文稿
+          type: answer
+          variables:
+            - value_selector:
+                - code-insert
+                - final_article
+              variable: final_article
+            - value_selector:
+                - code-insert
+                - insert_log
+              variable: insert_log
+        height: 116
+        id: answer-final
+        position:
+          x: 2766
+          y: 480
+        positionAbsolute:
+          x: 2766
+          y: 480
+        selected: false
+        sourcePosition: right
+        targetPosition: left
+        type: custom
+        width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.5

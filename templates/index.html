@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知乎智能配图助手 · 本地原型</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --text: #1a1a1a;
+      --muted: #666666;
+      --border: #e0e0e0;
+      --accent: #0066ff;
+      --accent-light: #e6f0ff;
+      --danger: #ff4d4f;
+      --success: #52c41a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 880px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+    input[type="text"], textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    textarea { resize: vertical; min-height: 140px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .field { margin-bottom: 16px; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { opacity: 0.9; }
+    button.secondary {
+      background: var(--card);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+    .output {
+      white-space: pre-wrap;
+      background: #fafafa;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 14px;
+      min-height: 120px;
+      max-height: 400px;
+      overflow: auto;
+    }
+    .output img { max-width: 100%; border-radius: 6px; margin: 8px 0; }
+    .card-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .insertion-card {
+      background: var(--accent-light);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .insertion-card .title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+    .insertion-card .prompt { font-size: 12px; color: var(--muted); font-family: monospace; }
+    .log { font-size: 12px; color: var(--muted); margin-top: 12px; }
+    .error { color: var(--danger); }
+    .success { color: var(--success); }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 知乎智能配图助手 · 本地原型</h1>
+    <p class="subtitle">不依赖 Dify，本地直连 DeepSeek + Seedream，快速验证完整流程。</p>
+
+    <div class="card">
+      <div class="card-title">① API 配置</div>
+      <div class="row">
+        <div class="field">
+          <label>DeepSeek API Key</label>
+          <input type="text" id="deepseek_key" placeholder="或设置环境变量 DEEPSEEK_API_KEY">
+        </div>
+        <div class="field">
+          <label>Seedream API Key</label>
+          <input type="text" id="seedream_key" placeholder="或设置环境变量 SEEDREAM_API_KEY">
+        </div>
+      </div>
+      <p class="hint">Key 仅用于本次本地请求，不会写入文件。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">② 第一轮：输入草稿</div>
+      <div class="row">
+        <div class="field">
+          <label>文字形式</label>
+          <select id="form">
+            <option value="文章">文章</option>
+            <option value="回答">回答</option>
+            <option value="想法">想法</option>
+          </select>
+        </div>
+        <div class="field"></div>
+      </div>
+      <div class="field">
+        <label>原始文字草稿</label>
+        <textarea id="draft" placeholder="把你想发在知乎的草稿贴在这里..."></textarea>
+      </div>
+      <button id="btn_analyze">开始分析并规划插图</button>
+      <div id="analyze_error" class="error hidden"></div>
+    </div>
+
+    <div id="step2" class="hidden">
+      <div class="card">
+        <div class="card-title">③ 分析结果</div>
+        <label>带占位符的文稿</label>
+        <div id="article_output" class="output"></div>
+
+        <label style="margin-top:16px">插图位提示词卡片</label>
+        <div id="insertions_output"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">④ 第二轮：选择配图方式</div>
+        <div class="actions">
+          <button id="btn_gen">🎨 自动生图（Seedream）</button>
+          <button class="secondary" id="btn_upload_trigger">📤 上传自己的图片</button>
+          <button class="secondary" id="btn_debug">🧪 charli 调试暗号</button>
+        </div>
+        <input type="file" id="upload_input" multiple accept="image/*" class="hidden">
+        <div id="final_error" class="error hidden"></div>
+        <label style="margin-top:16px">最终成稿</label>
+        <div id="final_output" class="output"></div>
+        <div id="final_log" class="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let sessionId = null;
+
+    function show(id, visible = true) {
+      document.getElementById(id).classList.toggle('hidden', !visible);
+    }
+    function setError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      show(id, !!msg);
+    }
+
+    document.getElementById('btn_analyze').addEventListener('click', async () => {
+      setError('analyze_error', '');
+      const btn = document.getElementById('btn_analyze');
+      btn.disabled = true; btn.textContent = '分析中...';
+      try {
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            form: document.getElementById('form').value,
+            draft: document.getElementById('draft').value,
+            deepseek_key: document.getElementById('deepseek_key').value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '分析失败');
+        sessionId = data.session_id;
+        document.getElementById('article_output').textContent = data.article;
+        const insEl = document.getElementById('insertions_output');
+        insEl.innerHTML = '';
+        data.insertions.forEach(ins => {
+          const div = document.createElement('div');
+          div.className = 'insertion-card';
+          div.innerHTML = `<div class="title">插图 ${ins.id} · ${ins.image_type} · ${ins.position_hint}</div><div class="prompt">${escapeHtml(ins.prompt)}</div>`;
+          insEl.appendChild(div);
+        });
+        show('step2', true);
+      } catch (e) {
+        setError('analyze_error', e.message);
+      } finally {
+        btn.disabled = false; btn.textContent = '开始分析并规划插图';
+      }
+    });
+
+    document.getElementById('btn_gen').addEventListener('click', async () => {
+      setError('final_error', '');
+      const btn = document.getElementById('btn_gen');
+      btn.disabled = true; btn.textContent = '生图中（逐张调用 Seedream）...';
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId, seedream_key: document.getElementById('seedream_key').value })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '生图失败');
+        renderFinal(data);
+      } catch (e) {
+        setError('final_error', e.message);
+      } finally {
+        btn.disabled = false; btn.textContent = '🎨 自动生图（Seedream）';
+      }
+    });
+
+    document.getElementById('btn_upload_trigger').addEventListener('click', () => {
+      document.getElementById('upload_input').click();
+    });
+
+    document.getElementById('upload_input').addEventListener('change', async (e) => {
+      setError('final_error', '');
+      const files = e.target.files;
+      if (!files.length) return;
+      const form = new FormData();
+      form.append('session_id', sessionId);
+      for (const f of files) form.append('images', f);
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '上传失败');
+        renderFinal(data);
+      } catch (err) {
+        setError('final_error', err.message);
+      }
+    });
+
+    document.getElementById('btn_debug').addEventListener('click', async () => {
+      setError('final_error', '');
+      try {
+        const res = await fetch('/api/debug', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '调试失败');
+        renderFinal(data);
+      } catch (err) {
+        setError('final_error', err.message);
+      }
+    });
+
+    function renderFinal(data) {
+      document.getElementById('final_output').innerHTML = markedToHtml(data.final_article);
+      document.getElementById('final_log').innerHTML = data.logs.map(l => `• ${escapeHtml(l)}`).join('<br>');
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    }
+
+    function markedToHtml(md) {
+      // 极简 markdown 转 HTML：图片、粗体、换行
+      let html = escapeHtml(md);
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/!\[(.+?)\]\((.+?)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:6px;margin:8px 0;">');
+      html = html.replace(/\n/g, '<br>');
+      return html;
+    }
+  </script>
+</body>
+</html>

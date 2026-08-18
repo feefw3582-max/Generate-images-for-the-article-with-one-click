@@ -58,6 +58,7 @@ SYSTEM_PROMPT = """你是知乎内容配图专家。用户会输入：
 2. 原始文字草稿
 
 你的任务是：
+0. 硬性限制：全文插图位数量必须控制在 2-5 个之间——任何文字形式（含想法）都至少安排 2 处插图位，最多不超过 5 处。宁缺毋滥，但绝不能少于 2 处。
 A. 判断文字形式，并基于草稿重写/润色成一篇「带插图位的完整文稿」。插图占位符必须严格使用如下格式（独占一行）：
 
 【为大大推荐在这里插入一张{具体画面描述}的图片哦～】
@@ -126,6 +127,51 @@ def _parse_llm_output(text):
             })
 
     return article, insertions
+
+
+MIN_INSERTS = 2
+MAX_INSERTS = 5
+
+
+def _clamp_insertions(article, insertions, min_n=MIN_INSERTS, max_n=MAX_INSERTS):
+    """限制节点：把插图位数量强制控制在 [min_n, max_n] 之间（默认 2-5 张）。
+
+    1) 超过 max_n：截断 insertions，并从文稿中删除第 max_n+1 个及以后的占位符；
+    2) 少于 min_n：在文稿末尾补足占位符与对应插图位，保证至少 min_n 张。
+    返回 (article, insertions, logs)，logs 为限制动作说明。
+    """
+    logs = []
+    pattern = re.compile(r'\n*\s*【为大大推荐在这里插入一张([^】]*)的图片哦～】\s*\n*')
+
+    # —— 超上限：截断 ——
+    if len(insertions) > max_n:
+        insertions = insertions[:max_n]
+        matches = list(pattern.finditer(article))
+        if len(matches) > max_n:
+            article = article[:matches[max_n].start()].rstrip() + '\n'
+        logs.append(f'⚠️ 插图位超出上限 {max_n} 张，已截断为前 {max_n} 张，多余占位符已从文稿移除。')
+
+    # —— 低于下限：文末补足 ——
+    if len(insertions) < min_n:
+        base = insertions[0]['image_type'] if insertions else '与文章主题呼应的画面'
+        need = min_n - len(insertions)
+        for k in range(need):
+            ins_type = f'呼应全文主题的{base}' if k == 0 else base
+            insertions.append({
+                'id': len(insertions) + 1,
+                'image_type': ins_type,
+                'position_hint': '文稿末尾',
+                'prompt': f'High quality image of {ins_type}, detailed, well-composed, '
+                          f'consistent visual style with the whole article, suitable for a Zhihu post',
+            })
+            article = article.rstrip() + f'\n\n【为大大推荐在这里插入一张{ins_type}的图片哦～】\n'
+        logs.append(f'⚠️ 插图位不足下限 {min_n} 张，已在文稿末尾补足 {need} 张占位符。')
+
+    # 重新编号，保证 id 从 1 连续
+    for i, ins in enumerate(insertions, 1):
+        ins['id'] = i
+
+    return article, insertions, logs
 
 
 def _generate_image(prompt, api_key, size='1920x1920'):
@@ -218,6 +264,7 @@ def api_analyze():
     content = _call_deepseek([{'role': 'system', 'content': SYSTEM_PROMPT},
                                {'role': 'user', 'content': user_msg}], api_key)
     article, insertions = _parse_llm_output(content)
+    article, insertions, limit_logs = _clamp_insertions(article, insertions)
 
     sid = str(uuid.uuid4())
     states[sid] = {
@@ -225,7 +272,7 @@ def api_analyze():
         'insertions': insertions,
         'created_at': datetime.now().isoformat(),
     }
-    return jsonify({'session_id': sid, 'article': article, 'insertions': insertions})
+    return jsonify({'session_id': sid, 'article': article, 'insertions': insertions, 'notes': limit_logs})
 
 
 @app.route('/api/generate', methods=['POST'])

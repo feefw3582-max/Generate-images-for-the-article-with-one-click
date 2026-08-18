@@ -32,27 +32,33 @@
 
 ```bash
 pip install -r requirements.txt
-
-DEEPSEEK_API_KEY=你的DeepSeekKey \
-SEEDREAM_API_KEY=你的SeedreamKey \
 python app.py
 ```
 
-打开 <http://127.0.0.1:5000>。
+打开 <http://127.0.0.1:5000>，**无需手动填 Key** —— 程序自动读取项目根目录 `.env` 文件（不存在时退回环境变量）。
 
-### 环境变量
+### 配置（`.env` 文件）
+
+在项目根目录创建 `.env`（**已被 .gitignore 排除，不会提交到 GitHub**）：
+
+```bash
+DEEPSEEK_API_KEY=你的DeepSeekKey
+SEEDREAM_API_KEY=你的SeedreamKey
+```
+
+环境变量会覆盖 `.env`，变量说明：
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `DEEPSEEK_API_KEY` | （必填） | DeepSeek API Key |
+| `DEEPSEEK_API_KEY` | 必填（.env 或环境变量） | DeepSeek API Key |
 | `DEEPSEEK_URL` | `https://api.deepseek.com/v1/chat/completions` | 可换其他 OpenAI 兼容端点 |
 | `DEEPSEEK_MODEL` | `deepseek-chat` | 模型名 |
-| `SEEDREAM_API_KEY` | （必填） | 火山方舟 API Key |
+| `SEEDREAM_API_KEY` | 必填（.env 或环境变量） | 火山方舟 API Key |
 | `SEEDREAM_URL` | `https://ark.cn-beijing.volces.com/api/v3/images/generations` | 可换其他兼容端点 |
 | `SEEDREAM_MODEL` | `doubao-seedream-5-0-260128` | Seedream 5.0 Lite 模型 ID |
 | `SEEDREAM_SIZE` | `1920x1920` | 生图尺寸（**5.0 Lite 要求 ≥3686400 像素，1024×1024 会报错**） |
 
-> Key 只通过环境变量传入，不会写入任何文件，请勿把 Key 提交到仓库。
+> Key 只存本机 `.env`，不进入任何提交文件，请勿把真实 Key 提交到 GitHub。
 
 ## Dify 部署方式
 

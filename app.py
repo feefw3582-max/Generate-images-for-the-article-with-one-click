@@ -28,6 +28,25 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 # 会话状态存储（内存级，重启丢失）
 states = {}
 
+
+def _load_env_file():
+    """从本地 .env 读取配置（key 只存本机，不进版本控制）。
+    支持 KEY=VALUE / 带引号 / 空行与 # 注释；环境变量优先级更高。"""
+    env_path = Path(__file__).parent / '.env'
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, _, value = line.partition('=')
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        if key:
+            os.environ.setdefault(key, value)
+
+
+_load_env_file()
+
 DEEPSEEK_URL = os.environ.get('DEEPSEEK_URL', 'https://api.deepseek.com/v1/chat/completions')
 DEEPSEEK_MODEL = os.environ.get('DEEPSEEK_MODEL', 'deepseek-chat')
 SEEDREAM_URL = os.environ.get('SEEDREAM_URL', 'https://ark.cn-beijing.volces.com/api/v3/images/generations')

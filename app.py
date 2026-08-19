@@ -18,7 +18,7 @@ from pathlib import Path
 from datetime import datetime
 
 import requests
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file
 
 app = Flask(__name__)
 
@@ -283,6 +283,15 @@ def _debug_replace(article, insertions):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
+@app.route('/proto')
+def proto():
+    """移动端交互原型——接入真实 DeepSeek 分析 + Seedream 生图，与 /api 同源。"""
+    proto_path = Path(__file__).parent.parent / 'mobile-proto' / 'index.html'
+    if not proto_path.exists():
+        return 'mobile-proto/index.html 不存在', 404
+    return send_file(str(proto_path))
 
 
 @app.route('/api/analyze', methods=['POST'])

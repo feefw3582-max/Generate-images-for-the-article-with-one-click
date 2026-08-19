@@ -6,7 +6,8 @@
 
 | 形态 | 位置 | 说明 |
 |---|---|---|
-| 🖥️ 本地交互原型 | `app.py` | Flask 网页应用，分析完成即默认自动生成一轮配图，直连 DeepSeek + Seedream |
+| 🖥️ 本地交互原型 | `app.py` `/` | Flask 网页应用，分析完成即默认自动生成一轮配图，直连 DeepSeek + Seedream |
+| 📱 移动端手机原型 | `app.py` `/proto` | 纯手机屏幕形态（输入标题+正文→AI 配图），**同样直连真实 DeepSeek + Seedream**，读取 `../mobile-proto/index.html` |
 | 🔄 Dify 工作流 DSL | `dify/zhihu_image_chatflow_v5.yml` | 可导入 Dify 的 Chatflow，同样逻辑跑在 Dify 上 |
 
 ## 功能流程
@@ -40,6 +41,9 @@ python app.py
 ```
 
 打开 <http://127.0.0.1:5000>，**无需手动填 Key** —— 程序自动读取项目根目录 `.env` 文件（不存在时退回环境变量）。
+
+移动端手机原型（纯手机屏幕、输入自己的文章）：打开 <http://127.0.0.1:5000/proto>。
+注意：`/proto` 读取的是仓库同级目录 `mobile-proto/index.html`，两个目录需一起部署。
 
 ### 配置（`.env` 文件）
 

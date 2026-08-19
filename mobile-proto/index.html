@@ -32,6 +32,13 @@
 
   /* ---------- phone ---------- */
   .phone-wrap{position:static;display:flex;flex-direction:column;align-items:center;gap:18px;}
+  .demo-tip{
+    display:none;align-items:center;gap:8px;
+    font-size:12.5px;color:#AEB6C8;background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.12);border-radius:999px;
+    padding:8px 16px;font-family:var(--font-ui);
+  }
+  .demo-tip .demo-dot{width:8px;height:8px;border-radius:50%;background:#F2C94C;box-shadow:0 0 8px rgba(242,201,76,.8);}
   .phone{
     width:392px;height:806px;border-radius:52px;background:#05070D;padding:12px;
     box-shadow:0 40px 120px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.06), inset 0 0 0 1px rgba(255,255,255,.04);
@@ -386,6 +393,9 @@
         <div class="toast" id="toast"></div>
       </div>
     </div>
+    <div class="demo-tip" id="demoTip">
+      <span class="demo-dot"></span>演示模式 · 配图为示例图片（当前页面未连接 AI 服务）
+    </div>
   </section>
 </main>
 
@@ -398,6 +408,77 @@ let promptOpen = {};     // item -> prompt panel open
 let sessionId = null;    // 后端会话
 let analysis = null;     // { article, insertions }
 const $ = id => document.getElementById(id);
+/* 演示模式：非本地环境（GitHub Pages / file://）时，AI 服务不可用，自动降级为示例数据。
+   本地 Flask（127.0.0.1/localhost）下仍走真实 DeepSeek + Seedream API。 */
+const DEMO = location.protocol === 'file:' || !['127.0.0.1','localhost'].includes(location.hostname);
+if(DEMO){
+  const t = document.getElementById('demoTip');
+  if(t) t.style.display = 'flex';
+}
+
+/* ---- demo 模式 mock：示例配图（SVG data URI，无网络依赖） ---- */
+function demoSvg(idx){
+  const palettes = [
+    ['#FFE7E7','#FFB9B9','#E8504D'],
+    ['#E4F0FF','#BBD9FF','#2F7BE8'],
+    ['#E7FAE7','#BFEDBF','#2FA85F'],
+    ['#FFF3DE','#FFE0AE','#E8962F']
+  ];
+  const [c1,c2,ac] = palettes[idx % palettes.length];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450" viewBox="0 0 600 450"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="600" height="450" fill="url(#g)"/><circle cx="478" cy="86" r="120" fill="${ac}" opacity=".25"/><circle cx="88" cy="366" r="160" fill="${ac}" opacity=".18"/><text x="300" y="214" text-anchor="middle" font-size="36" font-weight="700" fill="${ac}" font-family="PingFang SC, sans-serif">示例配图 ${idx+1}</text><text x="300" y="258" text-anchor="middle" font-size="17" fill="${ac}" opacity=".85" font-family="PingFang SC, sans-serif">演示模式 · AI 生成示意</text></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+function demoAnalyze(title, draft){
+  const paras = splitBlocks(draft);
+  const N = Math.min(3, Math.max(1, paras.length));
+  const kinds = [
+    {t:'城市夜景中暖色路灯下的街角', p:'A moody city street at night, warm street lamps glowing against cool blue shadows, cinematic composition, photorealistic, high detail'},
+    {t:'秋日树林中阳光洒落的红叶特写', p:'A close-up of vivid red maple leaves backlit by golden autumn sunlight, soft bokeh, shallow depth of field, photorealistic'},
+    {t:'清晨窗台上挂着露珠的绿植与橘猫', p:'Morning light on a windowsill, a potted plant with dew drops, a lazy orange cat beside it, cozy atmosphere, soft focus, photorealistic'}
+  ];
+  const insertions = [];
+  const blocks = [];
+  const step = Math.max(1, Math.round(paras.length / N));
+  paras.forEach((b, i) => {
+    blocks.push(b);
+    if((i+1) % step === 0 && insertions.length < N){
+      const k = kinds[insertions.length % kinds.length];
+      insertions.push({id: insertions.length+1, image_type:k.t, position_hint:'', prompt:k.p});
+      blocks.push(`【为大大推荐在这里插入一张${k.t}的图片哦～】`);
+    }
+  });
+  while(insertions.length < N){
+    const k = kinds[insertions.length % kinds.length];
+    insertions.push({id: insertions.length+1, image_type:k.t, position_hint:'', prompt:k.p});
+    blocks.push(`【为大大推荐在这里插入一张${k.t}的图片哦～】`);
+  }
+  return { session_id: 'demo-'+Date.now(), article: blocks.join('\n\n'), insertions };
+}
+
+/* ---- API 封装：demo 模式短路，本地环境走真实后端 ---- */
+function apiAnalyze(payload){
+  if(DEMO) return new Promise(res=>setTimeout(()=>res({ok:true, d:demoAnalyze(payload.form, payload.draft)}), 1600));
+  return fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(r=>r.json().then(d=>({ok:r.ok, d})));
+}
+function apiGenerateOne(payload){
+  if(DEMO) return new Promise(res=>setTimeout(()=>res({ok:true, d:{url:demoSvg((payload.id||1)-1)}}), 2000));
+  return fetch('/api/generate_one',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(r=>r.json().then(d=>({ok:r.ok, d})));
+}
+function apiUploadOne(fd){
+  if(DEMO){
+    const file = fd.get('image');
+    return new Promise((res, rej)=>{
+      const r = new FileReader();
+      r.onload = ()=>res({ok:true, d:{url:r.result}});
+      r.onerror = ()=>rej(new Error('读取图片失败'));
+      r.readAsDataURL(file);
+    });
+  }
+  return fetch('/api/upload_one',{method:'POST',body:fd})
+    .then(r=>r.json().then(d=>({ok:r.ok, d})));
+}
 const closeIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8 8l8 8M16 8l-8 8"/></svg>`;
 const checkIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l5 5L20 6"/></svg>`;
 const imgIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15.5l-5.2-5.2L5 21"/></svg>`;
@@ -588,12 +669,7 @@ function openMaskFlow(){
     <h4>正在分析你的文章…</h4>
     <p>DeepSeek 正在识别可插图位置<br>并生成每张配图的提示词</p>
   </div>`;
-  fetch('/api/analyze',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ form: title || '文章', draft: body })
-  })
-  .then(r=>r.json().then(d=>({ok:r.ok, d})))
+  apiAnalyze({ form: title || '文章', draft: body })
   .then(({ok,d})=>{
     $('ribbon').classList.remove('show');
     if(!ok) throw new Error(d.error || '分析失败');
@@ -674,12 +750,7 @@ function startCardGenerate(idx){
   gsap.fromTo(bar,{width:0},{width:'90%',duration:1.4,ease:'power2.out',onUpdate:function(){
     if(st) st.textContent=Math.round(this.progress()*90)+'%';
   }});
-  fetch('/api/generate_one',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ session_id: sessionId, id: it.id })
-  })
-  .then(r=>r.json().then(d=>({ok:r.ok, d})))
+  apiGenerateOne({ session_id: sessionId, id: it.id })
   .then(({ok,d})=>{
     if(!ok) throw new Error(d.error || '生成失败');
     imagesReady[idx]=d.url;
@@ -719,8 +790,7 @@ function uploadImage(idx,f){
   fd.append('session_id', sessionId);
   fd.append('id', it.id);
   fd.append('image', f);
-  fetch('/api/upload_one',{method:'POST',body:fd})
-    .then(r=>r.json().then(d=>({ok:r.ok, d})))
+  apiUploadOne(fd)
     .then(({ok,d})=>{
       if(!ok) throw new Error(d.error || '上传失败');
       imagesReady[idx]=d.url;

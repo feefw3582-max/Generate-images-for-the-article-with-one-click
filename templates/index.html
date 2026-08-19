@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>知乎智能配图助手 · 本地原型</title>
+  <title>知乎智能配图助手</title>
   <style>
     :root {
       --bg: #f5f6f8;
@@ -12,24 +12,22 @@
       --muted: #666666;
       --border: #e0e0e0;
       --accent: #0066ff;
+      --accent-deep: #0052cc;
       --accent-light: #e6f0ff;
       --danger: #ff4d4f;
       --success: #52c41a;
+      --ink-3: #8a93a6;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
       background: var(--bg);
       color: var(--text);
       line-height: 1.6;
     }
-    .container {
-      max-width: 880px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
+    .container { max-width: 860px; margin: 40px auto; padding: 0 20px; }
     h1 { font-size: 24px; margin-bottom: 8px; }
     .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
     .card {
@@ -39,6 +37,8 @@
       padding: 24px;
       margin-bottom: 20px;
     }
+    .card-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .card-title .sub-hint { font-size: 12px; color: var(--ink-3); font-weight: 400; margin-left: 8px; }
     label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
     input[type="text"], textarea, select {
       width: 100%;
@@ -51,7 +51,6 @@
     textarea { resize: vertical; min-height: 140px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
     .field { margin-bottom: 16px; }
-    .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
     button {
       background: var(--accent);
       color: #fff;
@@ -61,14 +60,11 @@
       font-size: 14px;
       cursor: pointer;
       font-weight: 600;
+      transition: background .2s, border-color .2s;
     }
-    button:hover { opacity: 0.9; }
-    button.secondary {
-      background: var(--card);
-      color: var(--accent);
-      border: 1px solid var(--accent);
-    }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:hover { background: var(--accent-deep); }
+    button.secondary { background: var(--card); color: var(--accent); border: 1px solid var(--accent); }
+    button.secondary:hover { background: var(--accent-light); }
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
     .output {
       white-space: pre-wrap;
@@ -78,32 +74,101 @@
       padding: 16px;
       font-size: 14px;
       min-height: 120px;
-      max-height: 400px;
+      max-height: 420px;
       overflow: auto;
     }
     .output img { max-width: 100%; border-radius: 6px; margin: 8px 0; }
-    .card-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
-    .insertion-card {
-      background: var(--accent-light);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 10px;
-    }
-    .insertion-card .title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
-    .insertion-card .prompt { font-size: 12px; color: var(--muted); font-family: monospace; }
     .log { font-size: 12px; color: var(--muted); margin-top: 12px; }
     .error { color: var(--danger); }
     .success { color: var(--success); }
-    .hidden { display: none; }
+    .hidden { display: none !important; }
+
+    /* ---------- per-card ---------- */
+    .ins-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+      background: #fdfdfe;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+    }
+    .ins-card .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .ph-tag {
+      display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
+      color: var(--accent); background: var(--accent-light); border-radius: 999px; padding: 3px 10px;
+    }
+    .ph-tag b { font-weight: 800; }
+    .del { color: var(--ink-3); font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+    .del:hover { color: var(--danger); background: #fff1f0; }
+
+    /* placeholder image preview slot */
+    .phimg {
+      position: relative; height: 170px; border-radius: 10px; margin-bottom: 10px; overflow: hidden;
+      border: 1.5px dashed rgba(0,102,255,.32); background: linear-gradient(180deg,#f8fbff,#eef4fe);
+      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px;
+      color: var(--accent); text-align: center;
+    }
+    .phimg .ph-main { font-size: 13px; font-weight: 600; color: var(--accent-deep); }
+    .phimg .ph-sub { font-size: 11px; color: var(--ink-3); line-height: 1.5; }
+    .phimg.ready { border-style: solid; border-color: transparent; background: #f0f2f5; }
+    .phimg.ready img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .phimg.error { border-color: rgba(255,77,79,.4); background: #fff7f7; }
+    .phimg.error .ph-main { color: var(--danger); }
+
+    /* loading dots bounce */
+    .gen-line { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--accent-deep); }
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(0,102,255,.25);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .dots { display: inline-flex; gap: 3px; margin-left: 2px; }
+    .dots i {
+      width: 5px; height: 5px; border-radius: 50%; background: currentColor;
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+    .dots i:nth-child(2) { animation-delay: .15s; }
+    .dots i:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: .45; }
+      30% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    .ins-info { margin-bottom: 10px; }
+    .ins-title { font-size: 13px; color: var(--text); }
+    .ins-title b { color: var(--accent-deep); }
+    .ins-prompt {
+      font-size: 11.5px; color: var(--ink-3); background: #f7f8fa; border-radius: 6px;
+      padding: 7px 9px; margin-top: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      word-break: break-all;
+    }
+    .ins-ops { display: flex; gap: 10px; }
+    .ins-ops button { flex: 1; }
+    .ins-ops button:disabled {
+      background: #f1f3f7; color: #b7bdc9; border: 1px solid #e3e6ee; cursor: not-allowed;
+    }
+    .ins-ops button.secondary:disabled { background: #f1f3f7; color: #b7bdc9; border-color: #e3e6ee; }
+
+    #btn_insert:disabled { background: #f1f3f7; color: #b7bdc9; cursor: not-allowed; }
+
+    /* toast */
+    #toast {
+      position: fixed; left: 50%; bottom: 42px; transform: translateX(-50%) translateY(16px);
+      background: rgba(20,24,34,.92); color: #fff; font-size: 13px; padding: 10px 18px;
+      border-radius: 999px; opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s;
+      z-index: 99; max-width: 80vw; text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🎯 知乎智能配图助手 · 本地原型</h1>
-    <p class="subtitle">不依赖 Dify，本地直连 DeepSeek + Seedream，快速验证完整流程。</p>
+    <h1>🎯 知乎智能配图助手</h1>
+    <p class="subtitle">AI 分析文稿并规划 2-5 处插图位，<b>默认先自动生成一轮配图</b>（loading 占位 → 成图自动替换）；生成中不可操作，生成后可对单张重新生成或上传替换，最后一键回填成稿。</p>
 
     <div class="card">
-      <div class="card-title">① 第一轮：输入草稿</div>
+      <div class="card-title">① 输入草稿</div>
       <div class="row">
         <div class="field">
           <label>文字形式</label>
@@ -125,68 +190,70 @@
 
     <div id="step2" class="hidden">
       <div class="card">
-        <div class="card-title">② 分析结果</div>
-        <label>带占位符的文稿</label>
+        <div class="card-title">② 带插图位的文稿 <span class="sub-hint">占位符 = 将来插图位置</span></div>
         <div id="article_output" class="output"></div>
-
-        <label style="margin-top:16px">插图位提示词卡片</label>
-        <div id="insertions_output"></div>
+        <div id="notes" class="log"></div>
       </div>
 
       <div class="card">
-        <div class="card-title">③ 第二轮：选择配图方式</div>
+        <div class="card-title">③ 配图卡片 <span class="sub-hint" id="gen_hint">AI 正在自动生成第一轮配图…</span></div>
+        <div id="cards"></div>
+        <input type="file" id="upload_input" accept="image/*" class="hidden">
         <div class="actions">
-          <button id="btn_gen">🎨 自动生图（Seedream）</button>
-          <button class="secondary" id="btn_upload_trigger">📤 上传自己的图片</button>
-          <button class="secondary" id="btn_debug">🧪 charli 调试暗号</button>
+          <button id="btn_insert" disabled>插入配图到文稿</button>
         </div>
-        <input type="file" id="upload_input" multiple accept="image/*" class="hidden">
-        <div id="final_error" class="error hidden"></div>
-        <label style="margin-top:16px">最终成稿</label>
+        <div id="insert_error" class="error hidden"></div>
+      </div>
+
+      <div class="card hidden" id="finalCard">
+        <div class="card-title">④ 最终成稿</div>
         <div id="final_output" class="output"></div>
         <div id="final_log" class="log"></div>
       </div>
     </div>
   </div>
 
+  <div id="toast"></div>
+
   <script>
     let sessionId = null;
+    let cards = [];          // [{id, image_type, position_hint, prompt}]
+    let imgMap = {};         // id -> url
+    let generating = {};     // id -> true/false
+    let failed = {};         // id -> true/false
+    let uploadTarget = null; // card id currently uploading
 
-    function show(id, visible = true) {
-      document.getElementById(id).classList.toggle('hidden', !visible);
-    }
-    function setError(id, msg) {
-      const el = document.getElementById(id);
-      el.textContent = msg;
-      show(id, !!msg);
+    const $ = id => document.getElementById(id);
+
+    function show(id, visible = true) { $(id).classList.toggle('hidden', !visible); }
+    function setError(id, msg) { const el = $(id); el.textContent = msg; show(id, !!msg); }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     }
 
-    document.getElementById('btn_analyze').addEventListener('click', async () => {
+    /* ---------- step 1: analyze ---------- */
+    $('btn_analyze').addEventListener('click', async () => {
       setError('analyze_error', '');
-      const btn = document.getElementById('btn_analyze');
+      const btn = $('btn_analyze');
       btn.disabled = true; btn.textContent = '分析中...';
       try {
         const res = await fetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            form: document.getElementById('form').value,
-            draft: document.getElementById('draft').value
-          })
+          body: JSON.stringify({ form: $('form').value, draft: $('draft').value })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '分析失败');
         sessionId = data.session_id;
-        document.getElementById('article_output').textContent = data.article;
-        const insEl = document.getElementById('insertions_output');
-        insEl.innerHTML = '';
-        data.insertions.forEach(ins => {
-          const div = document.createElement('div');
-          div.className = 'insertion-card';
-          div.innerHTML = `<div class="title">插图 ${ins.id} · ${ins.image_type} · ${ins.position_hint}</div><div class="prompt">${escapeHtml(ins.prompt)}</div>`;
-          insEl.appendChild(div);
-        });
+        $('article_output').textContent = data.article;
+        $('notes').innerHTML = (data.notes || []).map(n => `• ${escapeHtml(n)}`).join('<br>');
+        cards = data.insertions;
+        imgMap = {}; generating = {}; failed = {};
+        renderCards();
         show('step2', true);
+        $('finalCard').classList.add('hidden');
+        // new flow: AI generates once for every card by default
+        cards.forEach((c, i) => setTimeout(() => startGenerate(c.id), 400 + i * 500));
       } catch (e) {
         setError('analyze_error', e.message);
       } finally {
@@ -194,79 +261,180 @@
       }
     });
 
-    document.getElementById('btn_gen').addEventListener('click', async () => {
-      setError('final_error', '');
-      const btn = document.getElementById('btn_gen');
-      btn.disabled = true; btn.textContent = '生图中（逐张调用 Seedream）...';
+    /* ---------- cards ---------- */
+    function renderCards() {
+      $('cards').innerHTML = cards.map(c => cardHTML(c)).join('');
+    }
+
+    function cardHTML(c) {
+      const busy = !!generating[c.id];
+      const ready = !!imgMap[c.id];
+      const err = !!failed[c.id];
+      let phimg;
+      if (ready) {
+        phimg = `<div class="phimg ready"><img src="${imgMap[c.id]}" alt=""></div>`;
+      } else if (busy) {
+        phimg = `<div class="phimg">
+                   <div class="gen-line"><div class="spinner"></div>图片生成中<span class="dots"><i></i><i></i><i></i></span></div>
+                   <div class="ph-sub">AI 正在根据提示词绘制配图</div>
+                 </div>`;
+      } else if (err) {
+        phimg = `<div class="phimg error">
+                   <div class="ph-main">生成失败，请重试</div>
+                   <div class="ph-sub">可点击下方「重新生图」再试一次，或上传自己的图片</div>
+                 </div>`;
+      } else {
+        phimg = `<div class="phimg">
+                   <div class="ph-main">图片生成中<span class="dots"><i></i><i></i><i></i></span></div>
+                   <div class="ph-sub">AI 生成完成后，图片会自动显示在这里</div>
+                 </div>`;
+      }
+      return `
+        <div class="ins-card" id="card-${c.id}">
+          <div class="head">
+            <span class="ph-tag">插图建议 <b>${c.id}</b></span>
+            <span class="del" onclick="deleteCard(${c.id})">删除此插图位</span>
+          </div>
+          ${phimg}
+          <div class="ins-info">
+            <div class="ins-title">画面描述：<b>${escapeHtml(c.image_type)}</b>${c.position_hint ? ` <span style="color:var(--ink-3);font-weight:400">（${escapeHtml(c.position_hint)}）</span>` : ''}</div>
+            <div class="ins-prompt">${escapeHtml(c.prompt)}</div>
+          </div>
+          <div class="ins-ops">
+            <button class="secondary" ${busy ? 'disabled' : ''} onclick="uploadFor(${c.id})">上传图片</button>
+            <button ${busy ? 'disabled' : ''} onclick="startGenerate(${c.id})">${ready ? '重新生图' : '重新生图'}</button>
+          </div>
+        </div>`;
+    }
+
+    function renderCard(id) {
+      const el = $('card-' + id);
+      if (!el) return;
+      const c = cards.find(x => x.id === id);
+      if (!c) { el.remove(); updateInsertBar(); return; }
+      el.outerHTML = cardHTML(c);
+    }
+
+    function deleteCard(id) {
+      cards = cards.filter(c => c.id !== id);
+      delete imgMap[id]; delete generating[id]; delete failed[id];
+      $('card-' + id)?.remove();
+      updateInsertBar();
+      if (!cards.length) toast('👏 所有插图位已删除，请重新分析');
+    }
+
+    /* ---------- generate one card ---------- */
+    async function startGenerate(id) {
+      if (generating[id]) return;
+      generating[id] = true; failed[id] = false;
+      renderCard(id);
+      updateInsertBar();
+      $('gen_hint').textContent = 'AI 正在自动生成配图…';
       try {
-        const res = await fetch('/api/generate', {
+        const res = await fetch('/api/generate_one', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionId })
+          body: JSON.stringify({ session_id: sessionId, id })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '生图失败');
-        renderFinal(data);
+        imgMap[id] = data.url;
+        generating[id] = false;
+        renderCard(id);
+        updateInsertBar();
+        toast(`插图 ${id} 生成完成`);
       } catch (e) {
-        setError('final_error', e.message);
-      } finally {
-        btn.disabled = false; btn.textContent = '🎨 自动生图（Seedream）';
+        generating[id] = false; failed[id] = true;
+        renderCard(id);
+        updateInsertBar();
+        toast(`插图 ${id} 生成失败：${e.message}`);
       }
-    });
+    }
 
-    document.getElementById('btn_upload_trigger').addEventListener('click', () => {
-      document.getElementById('upload_input').click();
-    });
-
-    document.getElementById('upload_input').addEventListener('change', async (e) => {
-      setError('final_error', '');
-      const files = e.target.files;
-      if (!files.length) return;
+    /* ---------- upload one card ---------- */
+    $('upload_input').addEventListener('change', async (e) => {
+      const id = uploadTarget;
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!id || !file) return;
+      setError('insert_error', '');
+      generating[id] = true; failed[id] = false;
+      renderCard(id);
       const form = new FormData();
       form.append('session_id', sessionId);
-      for (const f of files) form.append('images', f);
+      form.append('id', id);
+      form.append('image', file);
       try {
-        const res = await fetch('/api/upload', { method: 'POST', body: form });
+        const res = await fetch('/api/upload_one', { method: 'POST', body: form });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '上传失败');
-        renderFinal(data);
+        imgMap[id] = data.url;
+        generating[id] = false;
+        renderCard(id);
+        updateInsertBar();
+        toast(`插图 ${id} 已替换为本地图片`);
       } catch (err) {
-        setError('final_error', err.message);
+        generating[id] = false; failed[id] = true;
+        renderCard(id);
+        toast(`插图 ${id} 上传失败：${err.message}`);
       }
     });
 
-    document.getElementById('btn_debug').addEventListener('click', async () => {
-      setError('final_error', '');
+    function uploadFor(id) { uploadTarget = id; $('upload_input').click(); }
+
+    /* ---------- insert bar ---------- */
+    function updateInsertBar() {
+      const readyCount = cards.filter(c => imgMap[c.id]).length;
+      const btn = $('btn_insert');
+      btn.disabled = readyCount === 0;
+      btn.textContent = readyCount === cards.length
+        ? `插入 ${readyCount} 张配图到文稿`
+        : `插入已配好的 ${readyCount} 张（共 ${cards.length}）`;
+      if (readyCount === cards.length) $('gen_hint').textContent = '全部配图已生成，可插入成稿';
+      else if (readyCount > 0) $('gen_hint').textContent = `已配好 ${readyCount}/${cards.length} 张，可先插入`;
+      else $('gen_hint').textContent = 'AI 正在自动生成第一轮配图…';
+    }
+
+    $('btn_insert').addEventListener('click', async () => {
+      setError('insert_error', '');
+      const btn = $('btn_insert');
+      btn.disabled = true;
       try {
-        const res = await fetch('/api/debug', {
+        const res = await fetch('/api/finalize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionId })
+          body: JSON.stringify({ session_id: sessionId, images: imgMap })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || '调试失败');
-        renderFinal(data);
-      } catch (err) {
-        setError('final_error', err.message);
+        if (!res.ok) throw new Error(data.error || '回填失败');
+        $('final_output').innerHTML = markedToHtml(data.final_article);
+        $('final_log').innerHTML = data.logs.map(l => `• ${escapeHtml(l)}`).join('<br>');
+        show('finalCard', true);
+        $('finalCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) {
+        setError('insert_error', e.message);
+      } finally {
+        btn.disabled = cards.filter(c => imgMap[c.id]).length === 0;
       }
     });
 
-    function renderFinal(data) {
-      document.getElementById('final_output').innerHTML = markedToHtml(data.final_article);
-      document.getElementById('final_log').innerHTML = data.logs.map(l => `• ${escapeHtml(l)}`).join('<br>');
-    }
-
-    function escapeHtml(s) {
-      return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-    }
-
+    /* ---------- utils ---------- */
     function markedToHtml(md) {
-      // 极简 markdown 转 HTML：图片、粗体、换行
       let html = escapeHtml(md);
       html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
       html = html.replace(/!\[(.+?)\]\((.+?)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:6px;margin:8px 0;">');
       html = html.replace(/\n/g, '<br>');
       return html;
+    }
+
+    let toastTimer;
+    function toast(msg) {
+      const el = $('toast');
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
     }
   </script>
 </body>

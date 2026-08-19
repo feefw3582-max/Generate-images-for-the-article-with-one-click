@@ -5,8 +5,9 @@
   打开 http://127.0.0.1:5000
 
 功能：
-  1. 第一轮输入文字形式 + 草稿，调用 DeepSeek 输出带占位符的文稿和插图位提示词。
-  2. 第二轮三选一：自动生图 / 上传图片 / 发送 charli 调试暗号，替换占位符后输出成稿。
+  1. 输入文字形式 + 草稿，调用 DeepSeek 输出带占位符的文稿和插图位提示词（强制 2-5 张）。
+  2. 新工作流：分析完成即默认自动逐张调用 Seedream 生成配图（前端 loading → 成图自动替换），
+     生成中不可操作；生成完成后可对单张「重新生图 / 上传图片」，最后按 id 回填成稿。
 """
 import os
 import re
@@ -219,6 +220,39 @@ def _replace_placeholders(article, insertions, image_urls_or_paths):
     return ''.join(parts), logs
 
 
+def _replace_placeholders_by_id(article, insertions, image_map):
+    """按插图位 id 回填：image_map 为 {id: 图片url/路径}，只替换已配好的，
+    未配图的占位符原样保留。返回 (final_article, logs)。"""
+    pattern = re.compile(r'\n*\s*【为大大推荐在这里插入一张([^】]*)的图片哦～】\s*\n*')
+    parts = []
+    pos = 0
+    idx = 0
+    logs = []
+    for m in pattern.finditer(article):
+        parts.append(article[pos:m.start()])
+        img_type = (m.group(1) or '未知类型').strip()
+        ins_id = insertions[idx]['id'] if idx < len(insertions) else idx + 1
+        src = image_map.get(str(ins_id)) or image_map.get(ins_id)
+        if src:
+            if src.startswith('/uploads/'):
+                tag = f'![插图{ins_id}]({src})'
+            elif src.startswith('data:'):
+                tag = f'<img src="{src}" alt="插图{ins_id}" style="max-width:100%;" />'
+            else:
+                tag = f'![插图{ins_id}]({src})'
+            parts.append(f'\n\n{tag}\n\n')
+            logs.append(f'占位符 {idx+1}（{img_type}）→ 已替换。')
+        else:
+            parts.append(article[m.start():m.end()])
+            logs.append(f'占位符 {idx+1}（{img_type}）→ 未配图，保留原占位符。')
+        pos = m.end()
+        idx += 1
+    parts.append(article[pos:])
+    if idx == 0:
+        logs.append('⚠️ 未在文稿中找到任何占位符！')
+    return ''.join(parts), logs
+
+
 def _debug_replace(article, insertions):
     pattern = re.compile(r'\n*\s*【为大大推荐在这里插入一张([^】]*)的图片哦～】\s*\n*')
     parts = []
@@ -301,6 +335,62 @@ def api_generate():
 
     final_article, replace_logs = _replace_placeholders(article, insertions, urls)
     return jsonify({'final_article': final_article, 'logs': gen_logs + replace_logs})
+
+
+@app.route('/api/generate_one', methods=['POST'])
+def api_generate_one():
+    """新工作流：对单个插图位生成一张图片（前端逐卡 loading → 成图自动替换）。"""
+    data = request.json
+    sid = data.get('session_id')
+    ins_id = data.get('id')
+    api_key = data.get('seedream_key', '').strip() or os.environ.get('SEEDREAM_API_KEY', '')
+    if not api_key:
+        return jsonify({'error': '缺少 Seedream API Key'}), 400
+    state = states.get(sid)
+    if not state:
+        return jsonify({'error': '会话不存在，请重新分析'}), 400
+    ins = next((x for x in state['insertions'] if x.get('id') == ins_id), None)
+    if not ins:
+        return jsonify({'error': f'插图位 {ins_id} 不存在'}), 400
+    try:
+        url = _generate_image(ins.get('prompt', 'A beautiful illustration'), api_key)
+        state.setdefault('generated', {})[str(ins_id)] = url
+        return jsonify({'id': ins_id, 'url': url})
+    except Exception as e:
+        return jsonify({'error': f'插图 {ins_id} 生成失败：{e}'}), 500
+
+
+@app.route('/api/upload_one', methods=['POST'])
+def api_upload_one():
+    """新工作流：给单个插图位上传一张本地图片。"""
+    sid = request.form.get('session_id')
+    ins_id = request.form.get('id')
+    state = states.get(sid)
+    if not state:
+        return jsonify({'error': '会话不存在'}), 400
+    f = request.files.get('image')
+    if not f:
+        return jsonify({'error': '未收到图片文件'}), 400
+    ext = Path(f.filename).suffix or '.png'
+    filename = f'{sid}_{ins_id}{ext}'
+    save_path = UPLOAD_DIR / filename
+    f.save(save_path)
+    url = f'/uploads/{filename}'
+    state.setdefault('generated', {})[str(ins_id)] = url
+    return jsonify({'id': ins_id, 'url': url})
+
+
+@app.route('/api/finalize', methods=['POST'])
+def api_finalize():
+    """新工作流：把已配好的图片按插图位 id 回填进文稿，未配图的位置保留占位符。"""
+    data = request.json
+    sid = data.get('session_id')
+    image_map = data.get('images', {}) or {}
+    state = states.get(sid)
+    if not state:
+        return jsonify({'error': '会话不存在'}), 400
+    final_article, logs = _replace_placeholders_by_id(state['article'], state['insertions'], image_map)
+    return jsonify({'final_article': final_article, 'logs': logs})
 
 
 @app.route('/api/upload', methods=['POST'])

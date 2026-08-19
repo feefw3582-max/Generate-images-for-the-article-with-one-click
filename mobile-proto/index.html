@@ -458,20 +458,15 @@ function cardHTML(it, st){
     </div>`;
 
   let ops;
-  if(st==='ready'){
-    ops = `<div class="sug-card-ops">
-             <button class="secondary" onclick="resetCardImage(${it.idx})">删除配图</button>
-             <button class="${open?'open':''}" onclick="togglePrompt(${it.idx})">重新生图 ${chevron}</button>
-           </div>`;
-  }else if(st==='idle'){
-    ops = `<div class="sug-card-ops">
-             <button class="secondary" onclick="openPickerFor(${it.idx})">上传图片</button>
-             <button class="${open?'open':''}" onclick="togglePrompt(${it.idx})">重新生图 ${chevron}</button>
-           </div>`;
-  }else{
+  if(busy){
     ops = `<div class="sug-card-ops">
              <button disabled>上传图片</button>
              <button disabled>重新生图</button>
+           </div>`;
+  }else{
+    ops = `<div class="sug-card-ops">
+             <button class="secondary" onclick="openPickerFor(${it.idx})">上传图片</button>
+             <button class="${open?'open':''}" onclick="togglePrompt(${it.idx})">重新生图 ${chevron}</button>
            </div>`;
   }
   return `

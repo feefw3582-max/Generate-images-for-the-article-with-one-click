@@ -78,9 +78,11 @@
   }
   .editor-mask.show{display:flex;}
 
-  /* bottom-sheet style mask page */
+  /* bottom-sheet style mask page: full-screen overlay so toolbar is covered */
+  .editor-mask{position:absolute;inset:0;z-index:60;display:none;}
+  .editor-mask.show{display:block;}
   .modal-card{
-    position:absolute;left:12px;right:12px;bottom:0;top:72px;
+    position:absolute;left:12px;right:12px;bottom:0;top:170px;
     background:var(--paper);border-radius:20px 20px 0 0;
     box-shadow:0 -10px 40px rgba(10,15,30,.18);
     display:flex;flex-direction:column;z-index:2;
@@ -344,20 +346,20 @@
 
 最后我想说，菜市场教会我们的，不只是怎么挑一把新鲜的葱，更是一种与生活和解的方式。</textarea>
           </div>
+        </div>
 
-          <!-- frontend mask overlay -->
-          <div class="editor-mask" id="editorMask">
-            <div class="modal-card">
-              <div class="modal-header">
-                <div>
-                  <span class="modal-title">智能配图</span>
-                  <span class="modal-sub" id="modalSub">正在分析你的文章</span>
-                </div>
-                <span class="modal-close" title="关闭遮罩" onclick="toggleMask(false)">&#10005;</span>
+        <!-- frontend mask overlay: covers the whole screen including toolbar -->
+        <div class="editor-mask" id="editorMask">
+          <div class="modal-card">
+            <div class="modal-header">
+              <div>
+                <span class="modal-title">智能配图</span>
+                <span class="modal-sub" id="modalSub">正在分析你的文章</span>
               </div>
-              <div class="modal-body" id="modalBody"></div>
-              <div class="modal-foot" id="modalFoot"></div>
+              <span class="modal-close" title="关闭遮罩" onclick="toggleMask(false)">&#10005;</span>
             </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-foot" id="modalFoot"></div>
           </div>
         </div>
 

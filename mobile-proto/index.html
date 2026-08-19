@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知乎智能配图助手 · 移动端交互原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<style>
+  :root{
+    --blue:#056DE8; --blue-deep:#0B4FB8; --blue-soft:#E8F1FE;
+    --ink:#1A1D26; --ink-2:#3D4350; --ink-3:#7A8194;
+    --line:#E6E9F0; --paper:#FFFFFF; --bg:#0B0F1A;
+    --amber:#B8860B; --amber-bg:#FFF8E6; --red:#D93636; --green:#0E9F6E;
+    --radius-card:14px; --radius-sheet:22px;
+    --font-display:'Outfit','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+    --font-ui:'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Outfit',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  html,body{width:100%;max-width:100%;overflow-x:hidden;}
+  body{
+    font-family:var(--font-ui); background:var(--bg); color:#EDEFF5; min-height:100vh;
+    background-image:
+      radial-gradient(900px 600px at 12% -10%, rgba(5,109,232,.20), transparent 60%),
+      radial-gradient(700px 500px at 105% 15%, rgba(122,84,255,.14), transparent 60%),
+      radial-gradient(800px 700px at 50% 120%, rgba(5,109,232,.10), transparent 60%);
+  }
+  main.stage{
+    display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;
+  }
+
+  /* ---------- phone ---------- */
+  .phone-wrap{position:static;display:flex;flex-direction:column;align-items:center;gap:18px;}
+  .phone{
+    width:392px;height:806px;border-radius:52px;background:#05070D;padding:12px;
+    box-shadow:0 40px 120px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.06), inset 0 0 0 1px rgba(255,255,255,.04);
+    position:relative;
+  }
+  .phone::after{content:"";position:absolute;right:-3px;top:120px;width:3px;height:70px;background:#2A3142;border-radius:2px;}
+  .phone::before{content:"";position:absolute;left:-3px;top:100px;width:3px;height:34px;background:#2A3142;border-radius:2px;}
+  .screen{
+    width:100%;height:100%;border-radius:42px;background:#F5F6F8;overflow:hidden;position:relative;
+    display:flex;flex-direction:column;
+  }
+  .notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#05070D;border-radius:14px;z-index:60;}
+  .statusbar{height:48px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--ink);z-index:55;background:transparent;}
+  .statusbar .icons{display:flex;gap:5px;align-items:center;}
+  .statusbar svg{display:block;}
+
+  /* app bar */
+  .appbar{flex:none;height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--paper);border-bottom:1px solid var(--line);}
+  .appbar .back{font-size:24px;color:var(--ink);line-height:1;cursor:default;}
+  .appbar .mid{font-size:13px;color:var(--ink-3);}
+  .appbar .pub{background:var(--blue);color:#fff;font-size:14px;font-weight:600;border-radius:999px;padding:7px 18px;}
+
+  /* article: original Zhihu editor page */
+  .article{flex:1;overflow-y:auto;background:var(--paper);scroll-behavior:smooth;position:relative;}
+  .article::-webkit-scrollbar{display:none;}
+  .editor-placeholder{padding:18px 20px 140px;}
+  .editor-title-ph, #editorTitle{
+    width:100%;font-size:22px;font-weight:600;color:var(--ink);line-height:1.4;
+    border:0;border-bottom:1px solid var(--line);border-radius:0;
+    padding:0 0 12px;margin:0 0 18px;background:transparent;outline:none;
+    font-family:var(--font-ui);
+  }
+  .editor-title-ph::placeholder, #editorTitle::placeholder{color:#C5C9D3;}
+  .editor-body-ph, #editorBody{
+    width:100%;font-size:16px;line-height:1.9;color:var(--ink-2);
+    border:0;border-radius:0;padding:0 0 24px;margin:0;background:transparent;outline:none;
+    min-height:260px;height:auto;resize:none;font-family:var(--font-ui);overflow:hidden;
+  }
+  .editor-body-ph::placeholder, #editorBody::placeholder{color:#C5C9D3;}
+
+  /* mask overlay: a page that slides out over the editor, edge-to-edge */
+  .editor-mask{
+    position:absolute;inset:0;z-index:60;display:none;flex-direction:column;
+  }
+  .editor-mask.show{display:flex;}
+
+  /* bottom-sheet style mask page */
+  .modal-card{
+    position:absolute;left:12px;right:12px;bottom:0;top:72px;
+    background:var(--paper);border-radius:20px 20px 0 0;
+    box-shadow:0 -10px 40px rgba(10,15,30,.18);
+    display:flex;flex-direction:column;z-index:2;
+  }
+  .modal-header{
+    flex:none;height:52px;border-bottom:1px solid var(--line);padding:0 16px;
+    display:flex;align-items:center;justify-content:space-between;background:#fff;
+  }
+  .modal-title{font-size:15px;font-weight:700;color:var(--ink);}
+  .modal-sub{font-size:11px;color:var(--ink-3);font-weight:400;margin-left:6px;}
+  .modal-close{
+    width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    color:var(--ink-3);background:#fff;font-size:15px;line-height:1;transition:background .2s,border-color .2s;
+  }
+  .modal-close:hover{background:#F2F4F8;border-color:#D4D8E3;}
+  .modal-body{flex:1;overflow-y:auto;padding:18px 20px 24px;background:var(--paper);}
+  .modal-body::-webkit-scrollbar{display:none;}
+  .empty-state{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:60px 24px;text-align:center;
+  }
+  .empty-state .empty-emoji{font-size:54px;margin-bottom:14px;}
+  .empty-state h4{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:8px;}
+  .empty-state p{font-size:13px;color:var(--ink-3);line-height:1.7;word-break:break-all;}
+  .modal-foot{
+    flex:none;height:62px;background:#fff;border-top:1px solid var(--line);
+    display:flex;align-items:center;padding:0 14px;gap:10px;
+  }
+
+  .art-title{font-size:21px;font-weight:700;color:var(--ink);line-height:1.4;margin-bottom:14px;}
+  .art-p{font-size:15.5px;line-height:1.9;color:var(--ink-2);margin-bottom:16px;white-space:pre-wrap;}
+  .ph-tag{
+    display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--blue);
+    background:var(--blue-soft);border-radius:999px;padding:3px 10px;margin-bottom:9px;
+  }
+  .ph-tag b{font-family:var(--font-display);font-weight:800;}
+  .art-img{display:block;width:100%;border-radius:12px;margin:16px 0;aspect-ratio:4/3;object-fit:cover;cursor:pointer;}
+  .img-pop{
+    position:absolute;z-index:80;background:var(--paper);border-radius:14px;box-shadow:0 18px 50px rgba(10,15,30,.30);
+    padding:8px;display:none;flex-direction:column;min-width:132px;
+  }
+  .img-pop.show{display:flex;}
+  .img-pop button{border:0;background:none;font-size:14px;color:var(--ink-2);padding:10px 16px;text-align:left;border-radius:9px;font-family:var(--font-ui);}
+  .img-pop button:hover{background:#F2F5FA;}
+  .img-pop button.danger{color:var(--red);}
+
+  /* loading ribbon */
+  .ribbon{
+    position:absolute;top:0;left:0;right:0;z-index:70;display:none;align-items:center;gap:10px;justify-content:center;
+    background:linear-gradient(180deg, rgba(5,109,232,.12), rgba(5,109,232,.04));
+    backdrop-filter:blur(8px);padding:56px 0 10px;font-size:13px;color:var(--blue-deep);font-weight:500;
+  }
+  .ribbon.show{display:flex;}
+  .spinner{width:15px;height:15px;border:2px solid rgba(5,109,232,.25);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* toolbar above keyboard */
+  .toolbar{
+    flex:none;background:var(--paper);border-top:1px solid var(--line);
+    display:flex;align-items:center;gap:6px;padding:10px 12px calc(10px + 18px);
+  }
+  .tb-btn{
+    flex:none;width:46px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    color:var(--ink-3);position:relative;
+  }
+  .tb-btn.ai{color:var(--blue);background:var(--blue-soft);}
+  .tb-btn .pulse{position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--red);display:none;}
+  .tb-btn.ai .pulse{display:block;}
+  .tb-sep{width:1px;height:22px;background:var(--line);margin:0 6px;}
+  .tb-word{font-size:13px;color:var(--ink-3);margin-left:auto;}
+  .tb-count{font-size:12px;color:var(--ink-3);background:#F2F4F8;border-radius:6px;padding:3px 8px;font-family:var(--font-display);}
+
+  /* toast */
+  .toast{
+    position:absolute;left:50%;bottom:210px;transform:translate(-50%,20px);z-index:90;
+    background:rgba(26,29,38,.94);color:#fff;font-size:13.5px;padding:11px 20px;border-radius:999px;
+    opacity:0;pointer-events:none;white-space:nowrap;box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:86%;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  /* in-article suggestion cards */
+  .ph-card{
+    position:relative;border:1px solid var(--line);border-radius:var(--radius-card);padding:12px 14px 14px;margin:16px 0;background:#FDFDFE;
+    transition:border-color .25s, box-shadow .25s, background .25s;
+    box-shadow:0 2px 12px rgba(10,15,30,.06);
+  }
+  .ph-card:hover{border-color:rgba(5,109,232,.45);}
+  .ph-card.ready{border-color:rgba(5,109,232,.55);background:#F7FAFF;}
+  .ph-card.flash{box-shadow:0 0 0 3px rgba(5,109,232,.28);border-color:rgba(5,109,232,.5);}
+  .card-close{
+    position:absolute;top:8px;right:8px;z-index:5;
+    width:26px;height:26px;border-radius:50%;border:1.5px solid rgba(5,109,232,.45);
+    background:#fff;color:var(--blue);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:background .2s, border-color .2s;
+  }
+  .card-close:hover{background:var(--blue-soft);border-color:var(--blue);}
+  .card-close svg{width:13px;height:13px;}
+  /* placeholder image (preview slot) */
+  .sug-phimg{
+    position:relative;height:150px;border-radius:10px;margin:0 0 12px;overflow:hidden;
+    border:1.5px dashed rgba(5,109,232,.32);background:linear-gradient(180deg,#F8FBFF,#EEF4FE);
+    display:flex;flex-direction:column;justify-content:space-between;align-items:center;
+    color:var(--blue);text-align:center;
+  }
+  .phimg-visual{
+    flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;width:100%;
+  }
+  .phimg-visual svg{width:27px;height:27px;opacity:.5;}
+  .phimg-visual .ph-main{font-size:13px;font-weight:600;color:var(--blue-deep);}
+  .phimg-visual .ph-sub{font-size:11px;color:var(--ink-3);line-height:1.5;}
+  .sug-phimg-caption{
+    width:100%;padding:10px 12px;text-align:left;font-size:13px;line-height:1.55;color:var(--blue-deep);
+    background:linear-gradient(180deg, rgba(232,241,254,.90), rgba(232,241,254,.96));
+    border-top:1px solid rgba(5,109,232,.12);
+  }
+  .sug-phimg.ready{border:0;background:#EEF1F6;}
+  .sug-phimg.gen{border-style:solid;border-color:rgba(5,109,232,.18);position:relative;}
+  .gen-overlay{
+    position:absolute;inset:0;z-index:3;
+    background:rgba(248,251,255,.86);
+    backdrop-filter:blur(1.5px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  }
+  .gen-overlay-inner{display:flex;align-items:center;gap:8px;}
+  .gen-overlay .gen-label{font-size:12.5px;color:var(--blue-deep);font-weight:600;}
+  .gen-overlay .sug-progress{position:absolute;left:10px;right:10px;bottom:10px;margin:0;}
+  .sug-phimg .shimmer{position:absolute;inset:0;background:linear-gradient(100deg,rgba(5,109,232,.05) 30%,rgba(5,109,232,.13) 50%,rgba(5,109,232,.05) 70%);background-size:200% 100%;animation:shm 1.2s linear infinite;}
+  @keyframes shm{to{background-position:-200% 0;}}
+  .sug-phimg .phimg-center{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12.5px;color:var(--blue-deep);font-weight:600;}
+  .gen-label{display:inline-flex;align-items:center;gap:5px;}
+  .bouncy-dots{display:inline-flex;align-items:flex-end;gap:3px;height:12px;padding-bottom:2px;}
+  .bouncy-dots span{display:inline-block;width:3.5px;height:3.5px;background:var(--blue);border-radius:50%;animation:bounce 1.1s infinite ease-in-out;}
+  .bouncy-dots span:nth-child(2){animation-delay:.16s;}
+  .bouncy-dots span:nth-child(3){animation-delay:.32s;}
+  @keyframes bounce{0%,80%,100%{transform:translateY(0);} 40%{transform:translateY(-6px);}}
+  .gen-pct{font-size:11.5px;color:var(--ink-3);font-weight:500;min-width:28px;text-align:right;}
+  .spinner2{width:15px;height:15px;border:2px solid rgba(5,109,232,.25);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;}
+  .sug-phimg .sug-progress{position:absolute;left:10px;right:10px;bottom:10px;margin:0;}
+  .sug-thumb{width:100%;height:100%;object-fit:cover;display:block;}
+  .sug-badge{position:absolute;top:8px;left:8px;display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--green);background:rgba(232,249,242,.95);border-radius:999px;padding:3px 9px;}
+
+  /* prompt expand box — 豆包式生图输入面板 */
+  .sug-expand{
+    border:1.5px solid var(--blue);background:#fff;border-radius:14px;padding:12px;margin-top:10px;
+  }
+  .sug-expand textarea{
+    width:100%;min-height:76px;border:0;resize:none;outline:none;
+    font-size:15px;line-height:1.65;color:var(--ink);background:transparent;
+    font-family:var(--font-ui);padding:0;
+  }
+  .sug-expand textarea::placeholder{color:#B8BDC8;}
+  .sug-expand .exp-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px;}
+  .sug-expand .exp-left{display:flex;gap:8px;}
+  .sug-expand .exp-chip{
+    height:32px;border-radius:999px;border:0;background:#F2F7FF;color:var(--blue);
+    font-size:13px;font-weight:500;font-family:var(--font-ui);padding:0 12px;
+    display:flex;align-items:center;gap:4px;cursor:pointer;
+  }
+  .sug-expand .exp-chip svg{width:10px;height:10px;}
+  .btn-gen{
+    height:34px;border-radius:10px;border:0;background:var(--blue);color:#fff;
+    font-size:13.5px;font-weight:600;font-family:var(--font-ui);cursor:pointer;padding:0 16px;
+  }
+  .btn-gen:active{background:var(--blue-deep);}
+  .btn-gen:disabled{opacity:.55;cursor:not-allowed;}
+  .sug-card-ops{display:flex;gap:10px;margin-top:12px;}
+  .sug-card-ops button{
+    flex:1;height:38px;border-radius:10px;border:1.5px solid var(--blue);background:#fff;color:var(--blue);
+    font-size:13.5px;font-weight:600;font-family:var(--font-ui);cursor:pointer;transition:background .2s;
+    display:flex;align-items:center;justify-content:center;gap:2px;
+  }
+  .sug-card-ops button:active{background:var(--blue-soft);}
+  .sug-card-ops button:disabled{opacity:1;cursor:not-allowed;background:#F1F3F7;color:#B7BDC9;border-color:#E3E6EE;}
+  .sug-card-ops button.secondary{border-color:var(--line);color:var(--ink-2);}
+  .sug-card-ops button.secondary:hover{border-color:var(--blue);color:var(--blue);}
+  .sug-card-ops button .chev{display:inline-block;margin-left:4px;vertical-align:-1px;transition:transform .25s;}
+  .sug-card-ops button.open .chev{transform:rotate(180deg);}
+  .sug-progress{height:5px;border-radius:3px;background:rgba(5,109,232,.12);overflow:hidden;}
+  .sug-progress i{display:block;height:100%;width:0;background:var(--blue);border-radius:3px;}
+
+  /* outline buttons */
+  .btn-outline{
+    flex:1;height:44px;border-radius:12px;border:1.5px solid var(--blue);color:var(--blue);
+    background:var(--paper);font-size:14.5px;font-weight:600;font-family:var(--font-ui);cursor:pointer;
+    transition:background .2s;
+  }
+  .btn-outline:active{background:var(--blue-soft);}
+  .btn-solid{
+    flex:1;height:44px;border-radius:12px;border:0;background:var(--blue);color:#fff;
+    font-size:14.5px;font-weight:600;font-family:var(--font-ui);cursor:pointer;
+  }
+  .btn-solid:active{background:var(--blue-deep);}
+
+  /* page title inside the sheet */
+  .sug-banner{
+    margin:6px 0 18px;
+  }
+  .sug-banner h5{font-size:16px;font-weight:700;color:var(--ink);line-height:1.4;margin-bottom:4px;}
+  .sug-banner p{font-size:12px;color:var(--ink-3);line-height:1.55;}
+
+  /* floating insert bar */
+  .insert-bar{
+    position:absolute;left:16px;right:16px;bottom:96px;z-index:65;display:none;
+  }
+  .insert-bar.show{display:block;}
+  .insert-bar button{
+    width:100%;height:46px;border:0;border-radius:999px;background:var(--blue);color:#fff;
+    font-size:15px;font-weight:600;font-family:var(--font-ui);cursor:pointer;
+    box-shadow:0 12px 30px rgba(5,109,232,.45);
+  }
+  .insert-bar button:active{background:var(--blue-deep);}
+
+  @media (max-width:460px){
+    .phone{width:100%;max-width:392px;height:auto;aspect-ratio:392/806;border-radius:42px;padding:10px;}
+    .screen{border-radius:34px;}
+    .notch{transform:translateX(-50%) scale(.9);}
+  }
+</style>
+</head>
+<body>
+<main class="stage">
+
+  <!-- ================= phone ================= -->
+  <section class="phone-wrap">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen" id="screen">
+
+        <div class="statusbar">
+          <span>20:27</span>
+          <span class="icons">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="#1A1D26"><rect x="0" y="6" width="3" height="5" rx="1"/><rect x="4.5" y="4" width="3" height="7" rx="1"/><rect x="9" y="2" width="3" height="9" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1" opacity=".35"/></svg>
+            <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="#1A1D26" stroke-width="1.4"><path d="M1 4.2C3.2 2 5.4 1 8 1s4.8 1 7 3.2"/><path d="M3.6 6.8C5 5.6 6.4 5 8 5s3 .6 4.4 1.8"/><circle cx="8" cy="9.3" r="1.4" fill="#1A1D26" stroke="none"/></svg>
+            <svg width="25" height="12" viewBox="0 0 25 12"><rect x=".5" y=".5" width="21" height="11" rx="3" fill="none" stroke="#1A1D26" stroke-opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="1.8" fill="#1A1D26"/><rect x="22.5" y="3.8" width="2" height="4.4" rx="1" fill="#1A1D26" fill-opacity=".4"/></svg>
+          </span>
+        </div>
+
+        <div class="appbar">
+          <span class="back">&lsaquo;</span>
+          <span class="mid">写文章</span>
+          <span class="pub">发布</span>
+        </div>
+
+        <!-- ribbon: analyzing -->
+        <div class="ribbon" id="ribbon"><span class="spinner"></span><span>正在分析中，可继续编辑</span></div>
+
+        <!-- original Zhihu editor page -->
+        <div class="article" id="article">
+          <div class="editor-placeholder" id="editorPlaceholder">
+            <input type="text" id="editorTitle" class="editor-title-ph" placeholder="请输入标题" value="为什么越来越多年轻人开始喜欢逛菜市场">
+            <textarea id="editorBody" class="editor-body-ph" placeholder="请输入正文">第一，菜市场是城市里最真实的烟火气聚集地。摊贩的吆喝声、讨价还价的对话、潮湿的地面反射着日光灯，一切都那么鲜活。
+
+第二，菜市场是性价比极高的社交空间。你可以在卖鱼的摊位前和老板聊怎么挑新鲜的鲈鱼，也可以在调料铺前跟大妈学腌泡菜的秘诀，这些随机而温暖的互动是线上购物永远无法替代的。
+
+第三，从消费心理学的角度看，菜市场提供了丰富的感官刺激，五颜六色的蔬果、此起彼伏的香味，都在激活我们的多巴胺，让我们感到真实而满足。
+
+第四，逛菜市场还是一种低成本的治愈方式。不需要昂贵的门票，只需要几块钱的青菜和半小时的闲逛，就能获得内心难得的平静。
+
+最后我想说，菜市场教会我们的，不只是怎么挑一把新鲜的葱，更是一种与生活和解的方式。</textarea>
+          </div>
+
+          <!-- frontend mask overlay -->
+          <div class="editor-mask" id="editorMask">
+            <div class="modal-card">
+              <div class="modal-header">
+                <div>
+                  <span class="modal-title">智能配图</span>
+                  <span class="modal-sub" id="modalSub">正在分析你的文章</span>
+                </div>
+                <span class="modal-close" title="关闭遮罩" onclick="toggleMask(false)">&#10005;</span>
+              </div>
+              <div class="modal-body" id="modalBody"></div>
+              <div class="modal-foot" id="modalFoot">
+                <button class="btn-solid" style="flex:1;" onclick="insertAll()">插入配图到正文</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- toolbar -->
+        <div class="toolbar" id="toolbar">
+          <span class="tb-btn" title="文本"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 6h14M5 12h9M5 18h12"/></svg></span>
+          <span class="tb-btn" title="图片"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M4 18l5-5 4 4 3-3 4 4"/></svg></span>
+          <span class="tb-btn ai" id="btnEntry" title="AI 配图" onclick="openMaskFlow()">
+            <span class="pulse"></span>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="13" height="13" rx="3"/><path d="M8 21h11a2 2 0 0 0 2-2V8"/><path d="M8.5 13.2l2-2.4 2.3 2.7 1.6-1.8 1.6 1.9"/><circle cx="8.6" cy="9" r="1" fill="currentColor" stroke="none"/></svg>
+          </span>
+          <span class="tb-sep"></span>
+          <span class="tb-btn" title="撤销"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></span>
+          <span class="tb-word">AI 配图</span>
+          <span class="tb-count" id="wordCount">0</span>
+        </div>
+
+        <!-- image adjust popover -->
+        <div class="img-pop" id="imgPop">
+          <button onclick="toastMsg('已进入换图流程')">换一张</button>
+          <button class="danger" onclick="removeInserted(this)">删除图片</button>
+        </div>
+
+        <div class="toast" id="toast"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ================= state ================= */
+let items = [];          // active items（来自 DeepSeek 分析结果）
+let genState = {};       // per-item status: idle | generating | uploading | ready
+let imagesReady = {};    // item -> final image url（Seedream 返回）
+let promptOpen = {};     // item -> prompt panel open
+let sessionId = null;    // 后端会话
+let analysis = null;     // { article, insertions }
+const $ = id => document.getElementById(id);
+const closeIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8 8l8 8M16 8l-8 8"/></svg>`;
+const checkIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l5 5L20 6"/></svg>`;
+const imgIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15.5l-5.2-5.2L5 21"/></svg>`;
+const chevron = `<svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ================= in-article suggestion cards ================= */
+function cardHTML(it, st){
+  const closeBtn = `<span class="card-close" title="删除此插图位" onclick="deleteCard(${it.idx})">${closeIcon}</span>`;
+  const open = !!promptOpen[it.idx];
+  const busy = (st==='generating'||st==='uploading');
+
+  /* placeholder image area — always visible so users know an image slot exists */
+  const idlePhimg = `
+    <div class="phimg-visual">
+      ${imgIcon}
+      <span class="ph-main">图片生成中<span class="bouncy-dots"><span></span><span></span><span></span></span></span>
+      <span class="ph-sub">AI 生图或上传图片后，图片显示在这里</span>
+    </div>
+    <div class="sug-phimg-caption">${esc(it.ph)}</div>`;
+
+  let phimg;
+  if(st==='ready' && imagesReady[it.idx]){
+    phimg = `<div class="sug-phimg ready">
+               <img class="sug-thumb" src="${imagesReady[it.idx]}" alt="">
+               <div class="sug-badge">${checkIcon}<span>已配图</span></div>
+             </div>`;
+  }else if(busy){
+    const isGen = st==='generating';
+    const label = isGen ? '图片生成中' : '正在读取相册';
+    const dots = '<span class="bouncy-dots"><span></span><span></span><span></span></span>';
+    phimg = `<div class="sug-phimg gen">
+               ${idlePhimg}
+               <div class="gen-overlay">
+                 <div class="gen-overlay-inner"><div class="spinner2"></div><span class="gen-label">${label}${dots}<span class="gen-pct" id="st-${it.idx}">0%</span></span></div>
+                 <div class="sug-progress"><i id="bar-${it.idx}"></i></div>
+               </div>
+             </div>`;
+  }else{
+    phimg = `<div class="sug-phimg">${idlePhimg}</div>`;
+  }
+
+  /* hidden prompt input panel — 豆包式输入框 + 风格/比例 + 生成 */
+  const expand = `
+    <div class="sug-expand" id="exp-${it.idx}"${open?'':' style="display:none"'}>
+      <textarea id="prompt-in-${it.idx}" placeholder="请描述你想要配图的内容" ${busy?'disabled':''}>${esc(it.prompt)}</textarea>
+      <div class="exp-foot">
+        <div class="exp-left">
+          <span class="exp-chip">纪实摄影 <svg viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="exp-chip">1:1 <svg viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+        <button class="btn-gen" ${busy?'disabled':''} onclick="startCardGenerate(${it.idx})">生成图片</button>
+      </div>
+    </div>`;
+
+  let ops;
+  if(st==='ready'){
+    ops = `<div class="sug-card-ops">
+             <button class="secondary" onclick="resetCardImage(${it.idx})">删除配图</button>
+             <button class="${open?'open':''}" onclick="togglePrompt(${it.idx})">重新生图 ${chevron}</button>
+           </div>`;
+  }else if(st==='idle'){
+    ops = `<div class="sug-card-ops">
+             <button class="secondary" onclick="openPickerFor(${it.idx})">上传图片</button>
+             <button class="${open?'open':''}" onclick="togglePrompt(${it.idx})">重新生图 ${chevron}</button>
+           </div>`;
+  }else{
+    ops = `<div class="sug-card-ops">
+             <button disabled>上传图片</button>
+             <button disabled>重新生图</button>
+           </div>`;
+  }
+  return `
+    ${closeBtn}
+    <div class="ph-tag">插图建议 <b>${it.idx+1}</b></div>
+    ${phimg}
+    ${ops}
+    ${expand}`;
+}
+
+function togglePrompt(idx){
+  promptOpen[idx]=!promptOpen[idx];
+  renderCard(idx);
+  const exp=$(`exp-${idx}`);
+  if(promptOpen[idx] && exp) gsap.fromTo(exp,{opacity:0,y:6},{opacity:1,y:0,duration:.3,ease:'power3.out'});
+}
+
+function removeCards(){
+  const body = $('modalBody');
+  body.querySelectorAll('.ph-card').forEach(e=>e.remove());
+  document.querySelector('.sug-banner')?.remove();
+}
+
+/* 把带占位符的文稿拆成 段落 + 插图卡片 依次渲染 */
+function splitBlocks(article){
+  return (article||'').split(/\n+/).map(s=>s.trim()).filter(Boolean);
+}
+function blockIsPlaceholder(b){
+  return /^【为大大推荐在这里插入一张.+?的图片哦～】$/.test(b) || /^@image#\d+:.+/.test(b);
+}
+function sanitizeDraft(text){
+  // 清理剪贴板/其他编辑器带进来的内部图片占位符，避免被当成普通文字显示
+  return String(text||'').replace(/@image#\d+:[^\n]*/g, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+function renderArticleBlocks(article){
+  const blocks = splitBlocks(article);
+  let html = '';
+  let k = 0;
+  blocks.forEach(b=>{
+    if(blockIsPlaceholder(b)){
+      const it = items[k++];
+      if(it) html += `<div class="ph-card" id="ph-card-${it.idx}" data-i="${it.idx}">${cardHTML(it, genState[it.idx]||'idle')}</div>`;
+    }else if(b.startsWith('### ')) html += `<div class="art-title" style="font-size:17px">${esc(b.slice(4))}</div>`;
+    else if(b.startsWith('## ')) html += `<div class="art-title" style="font-size:18px">${esc(b.slice(3))}</div>`;
+    else if(b.startsWith('# ')) html += `<div class="art-title">${esc(b.slice(2))}</div>`;
+    else html += `<p class="art-p">${esc(b)}</p>`;
+  });
+  return html;
+}
+
+function buildCards(){
+  const body = $('modalBody');
+  body.innerHTML = analysis ? renderArticleBlocks(analysis.article) : '';
+}
+
+function renderCard(idx){
+  const el=document.getElementById(`ph-card-${idx}`);
+  if(!el) return;
+  const it=items.find(x=>x.idx===idx);
+  if(!it){ el.remove(); return; }
+  const st=genState[idx]||'idle';
+  el.className='ph-card'+(st==='ready'?' ready':'');
+  el.innerHTML=cardHTML(it, st);
+}
+
+/* ================= toast ================= */
+let toastTimer;
+function toastMsg(msg){
+  const t=$('toast'); t.textContent=msg;
+  gsap.killTweensOf(t);
+  gsap.fromTo(t,{opacity:0,y:16,xPercent:-50},{opacity:1,y:0,xPercent:-50,duration:.35,ease:'power3.out'});
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>gsap.to(t,{opacity:0,y:10,duration:.3}),2200);
+}
+
+/* ================= modal foot insert bar ================= */
+function updateInsertBar(){
+  const foot=$('modalFoot');
+  const readyCount = items.filter(it=>genState[it.idx]==='ready').length;
+  const btn = foot.querySelector('button');
+  if(readyCount>0){
+    btn.textContent = readyCount===items.length
+      ? `插入 ${readyCount} 张配图到正文`
+      : `插入已配好的 ${readyCount} 张（共 ${items.length}）`;
+    btn.style.display='block';
+    btn.disabled=false;
+  }else{
+    btn.textContent='插入配图到正文';
+    btn.style.display='none';
+  }
+}
+
+/* ================= mask overlay ================= */
+function toggleMask(show){
+  const mask=$('editorMask');
+  if(show){
+    mask.classList.add('show');
+    gsap.fromTo(mask,{opacity:0},{opacity:1,duration:.2});
+    gsap.fromTo('.modal-card',{y:'100%'},{y:'0%',duration:.5,ease:'power3.out'});
+  }else{
+    gsap.to('.modal-card',{y:'100%',duration:.35,ease:'power3.in',onComplete:()=>{
+      mask.classList.remove('show');
+      gsap.set('.modal-card',{y:'0%'});
+    }});
+  }
+}
+
+/* ========== 主流程：真实调用 DeepSeek 分析用户输入的文章 ========== */
+function openMaskFlow(){
+  const title = getEditorTitle();
+  const body = sanitizeDraft(getEditorBody());
+  if(!body){ toastMsg('请先在编辑页输入文章内容'); return; }
+  resetAll();
+  toggleMask(true);
+  $('ribbon').classList.add('show');
+  $('modalSub').textContent = '正在分析你的文章';
+  $('modalBody').innerHTML = `<div class="empty-state">
+    <div class="empty-emoji">🔍</div>
+    <h4>正在分析你的文章…</h4>
+    <p>DeepSeek 正在识别可插图位置<br>并生成每张配图的提示词</p>
+  </div>`;
+  fetch('/api/analyze',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ form: title || '文章', draft: body })
+  })
+  .then(r=>r.json().then(d=>({ok:r.ok, d})))
+  .then(({ok,d})=>{
+    $('ribbon').classList.remove('show');
+    if(!ok) throw new Error(d.error || '分析失败');
+    sessionId = d.session_id;
+    analysis = d;
+    items = (d.insertions||[]).map((ins,i)=>({
+      idx:i,
+      id:ins.id,
+      ph:`【为大大推荐在这里插入一张${ins.image_type}的图片哦～】`,
+      name:ins.image_type,
+      prompt:ins.prompt || ''
+    }));
+    $('modalSub').textContent = `已识别 ${items.length} 处可插图位置`;
+    if(!items.length){ showEmpty(); return; }
+    showCardsInMask();
+    /* 默认 AI 自动逐张生成（真实 Seedream） */
+    items.forEach((it,i)=>{
+      setTimeout(()=>startCardGenerate(it.idx), 600+i*400);
+    });
+  })
+  .catch(err=>{
+    $('ribbon').classList.remove('show');
+    $('modalBody').innerHTML = `<div class="empty-state">
+      <div class="empty-emoji">😵</div>
+      <h4>分析失败</h4>
+      <p>${esc(err.message)}</p>
+      <button class="btn-outline" style="width:auto;padding:0 22px;margin-top:18px;" onclick="toggleMask(false)">回到编辑</button>
+    </div>`;
+  });
+}
+
+function resetAll(){
+  genState={}; imagesReady={}; promptOpen={};
+  items=[]; sessionId=null; analysis=null;
+  removeCards();
+  updateInsertBar();
+}
+
+/* step 3: cards interleaved with the article inside the mask page */
+function showCardsInMask(){
+  buildCards();
+  if(!document.querySelector('.sug-banner')){
+    const banner = document.createElement('div');
+    banner.className='sug-banner';
+    banner.innerHTML=`
+      <h5>已为您识别 ${items.length} 处可插图位置</h5>
+      <p>AI 正在自动生成配图，完成后可重新生成或上传替换</p>`;
+    $('modalBody').prepend(banner);
+  }
+  gsap.fromTo('.ph-card',{y:18,opacity:0},{y:0,opacity:1,duration:.45,stagger:.09,ease:'power3.out'});
+  const first=document.querySelector('.ph-card');
+  if(first){ first.scrollIntoView({block:'center'}); }
+  updateInsertBar();
+}
+
+function deleteCard(idx){
+  items = items.filter(it=>it.idx!==idx);
+  delete genState[idx]; delete imagesReady[idx]; delete promptOpen[idx];
+  document.getElementById(`ph-card-${idx}`)?.remove();
+  if(items.length===0){
+    toastMsg('👏 暂无插图建议，请继续创作吧');
+    setTimeout(()=>toggleMask(false),1200);
+  }else{
+    toastMsg('已删除，该插图位已移除');
+  }
+  updateInsertBar();
+  $('modalSub').textContent = `已识别 ${items.length} 处可插图位置`;
+}
+
+/* ========== 单卡生成：真实调用 Seedream ========== */
+function startCardGenerate(idx){
+  if(genState[idx]==='generating') return; /* already in flight */
+  const it = items.find(x=>x.idx===idx);
+  if(!it) return;
+  genState[idx]='generating';
+  renderCard(idx);
+  const bar=$(`bar-${idx}`); const st=$(`st-${idx}`);
+  gsap.fromTo(bar,{width:0},{width:'90%',duration:1.4,ease:'power2.out',onUpdate:function(){
+    if(st) st.textContent=Math.round(this.progress()*90)+'%';
+  }});
+  fetch('/api/generate_one',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ session_id: sessionId, id: it.id })
+  })
+  .then(r=>r.json().then(d=>({ok:r.ok, d})))
+  .then(({ok,d})=>{
+    if(!ok) throw new Error(d.error || '生成失败');
+    imagesReady[idx]=d.url;
+    genState[idx]='ready';
+    if(bar){ bar.style.width='100%'; }
+    if(st){ st.textContent='100%'; }
+    renderCard(idx);
+    updateInsertBar();
+    toastMsg(`「${it.name}」生成完成`);
+  })
+  .catch(err=>{
+    genState[idx]='idle';
+    renderCard(idx);
+    updateInsertBar();
+    toastMsg(`生成失败：${err.message}`);
+  });
+}
+function resetCardImage(idx){
+  delete imagesReady[idx]; genState[idx]='idle';
+  renderCard(idx);
+  updateInsertBar();
+}
+
+/* ========== 上传：真实调用 /api/upload_one ========== */
+function openPickerFor(idx){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*';
+  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(f) uploadImage(idx,f); };
+  inp.click();
+}
+function uploadImage(idx,f){
+  const it = items.find(x=>x.idx===idx);
+  if(!it) return;
+  genState[idx]='uploading';
+  renderCard(idx);
+  const fd=new FormData();
+  fd.append('session_id', sessionId);
+  fd.append('id', it.id);
+  fd.append('image', f);
+  fetch('/api/upload_one',{method:'POST',body:fd})
+    .then(r=>r.json().then(d=>({ok:r.ok, d})))
+    .then(({ok,d})=>{
+      if(!ok) throw new Error(d.error || '上传失败');
+      imagesReady[idx]=d.url;
+      genState[idx]='ready';
+      renderCard(idx);
+      updateInsertBar();
+      toastMsg(`已上传到「${it.name}」`);
+    })
+    .catch(err=>{
+      genState[idx]='idle';
+      renderCard(idx);
+      toastMsg('上传失败：'+err.message);
+    });
+}
+
+/* step 2: empty state */
+function showEmpty(){
+  toggleMask(true);
+  $('modalBody').innerHTML = `<div class="empty-state">
+    <div class="empty-emoji">👏</div>
+    <h4>暂无插图建议，请继续创作吧</h4>
+    <p>调研显示 82% 的高互动内容本就零配图<br>不逼用户配图，把选择权还给您</p>
+    <button class="btn-outline" style="width:auto;padding:0 22px;margin-top:18px;" onclick="toggleMask(false)">回到编辑</button>
+  </div>`;
+}
+
+function getEditorTitle(){ return ($('editorTitle')?.value || '').trim(); }
+function getEditorBody(){ return ($('editorBody')?.value || '').trim(); }
+
+/* step 6: images land in the original editor page, mask closes */
+function insertAll(){
+  if(!analysis){ toastMsg('请先完成分析'); return; }
+  let n=0;
+  const blocks = splitBlocks(analysis.article);
+  let html = '';
+  let k = 0;
+  blocks.forEach(b=>{
+    if(blockIsPlaceholder(b)){
+      const it = items[k++];
+      if(it && genState[it.idx]==='ready' && imagesReady[it.idx]){
+        html += `<img class="art-img" src="${imagesReady[it.idx]}" onclick="event.stopPropagation();showImgPop(this,event)">`;
+        n++;
+      }else{
+        html += `<p class="art-p" style="color:var(--amber);background:var(--amber-bg);border-radius:8px;padding:8px 10px;">${esc(b)}</p>`;
+      }
+    }else if(b.startsWith('### ')) html += `<div class="art-title" style="font-size:17px">${esc(b.slice(4))}</div>`;
+    else if(b.startsWith('## ')) html += `<div class="art-title" style="font-size:18px">${esc(b.slice(3))}</div>`;
+    else if(b.startsWith('# ')) html += `<div class="art-title">${esc(b.slice(2))}</div>`;
+    else html += `<p class="art-p">${esc(b)}</p>`;
+  });
+  const ph = document.getElementById('editorPlaceholder');
+  if(ph) ph.innerHTML = html;
+  toggleMask(false);
+  toastMsg(`已插入 ${n} 张配图到正文`);
+  const first=document.querySelector('.art-img');
+  if(first){ gsap.fromTo(first,{scale:.92,opacity:.4},{scale:1,opacity:1,duration:.6,ease:'power2.out'}); }
+}
+function showImgPop(img,e){
+  const pop=$('imgPop');
+  const r=img.getBoundingClientRect(), s=$('screen').getBoundingClientRect();
+  pop.style.left=Math.min(Math.max(16, r.left-s.left+20), s.width-160)+'px';
+  pop.style.top=(r.top-s.top-70)+'px';
+  pop.classList.add('show');
+  const close=()=>{pop.classList.remove('show');document.removeEventListener('click',close);};
+  setTimeout(()=>document.addEventListener('click',close),50);
+}
+function removeInserted(){
+  $('imgPop').classList.remove('show');
+  toastMsg('已删除该图片');
+}
+
+/* textarea auto-resize + word count + explicit paste support */
+function bindEditor(){
+  const ta=$('editorBody'); const ti=$('editorTitle'); if(!ta) return;
+  const resize=()=>{ ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; };
+  const count=()=>{ const c=$('wordCount'); if(c) c.textContent=ta.value.length; };
+  ta.addEventListener('input',()=>{ resize(); count(); });
+  ta.addEventListener('focus',resize);
+  ['paste','copy','cut'].forEach(ev=>{
+    [ta,ti].forEach(el=>{
+      if(!el) return;
+      el.addEventListener(ev,(e)=>{
+        // do not prevent default — let native clipboard work
+      });
+    });
+  });
+  resize(); count();
+}
+bindEditor();
+
+/* entrance */
+gsap.from('.phone',{y:40,opacity:0,duration:.9,ease:'power3.out'});
+</script>
+</body>
+</html>

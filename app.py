@@ -288,7 +288,7 @@ def index():
 @app.route('/proto')
 def proto():
     """移动端交互原型——接入真实 DeepSeek 分析 + Seedream 生图，与 /api 同源。"""
-    proto_path = Path(__file__).parent.parent / 'mobile-proto' / 'index.html'
+    proto_path = Path(__file__).parent / 'mobile-proto' / 'index.html'
     if not proto_path.exists():
         return 'mobile-proto/index.html 不存在', 404
     return send_file(str(proto_path))

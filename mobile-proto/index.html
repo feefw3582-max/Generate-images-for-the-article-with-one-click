@@ -164,6 +164,41 @@
   .tb-word{font-size:13px;color:var(--ink-3);margin-left:auto;}
   .tb-count{font-size:12px;color:var(--ink-3);background:#F2F4F8;border-radius:6px;padding:3px 8px;font-family:var(--font-display);}
 
+  /* split image button + dropdown */
+  .tb-img-split{position:relative;display:flex;align-items:center;flex:none;}
+  .tb-img-main{
+    width:34px;height:40px;border-radius:11px 0 0 11px;display:flex;align-items:center;justify-content:center;
+    color:var(--ink-3);background:var(--paper);
+  }
+  .tb-img-main:active{background:var(--blue-soft);}
+  .tb-img-arrow{
+    width:18px;height:40px;border-radius:0 11px 11px 0;display:flex;align-items:center;justify-content:center;
+    color:var(--ink-3);border-left:1px solid var(--line);background:var(--paper);
+  }
+  .tb-img-arrow:active{background:var(--blue-soft);}
+  .tb-img-arrow svg{transition:transform .22s ease;}
+  .tb-img-arrow.open svg{transform:rotate(180deg);}
+  .img-dd-menu{
+    position:absolute;bottom:calc(100% + 12px);left:-6px;z-index:80;
+    background:#fff;border-radius:16px;
+    box-shadow:0 14px 44px rgba(10,15,30,.2),0 0 0 1px rgba(0,0,0,.08);
+    padding:7px;min-width:156px;display:none;
+  }
+  .img-dd-menu.show{display:block;animation:ddPop .2s ease;}
+  @keyframes ddPop{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  .img-dd-menu::after{
+    content:'';position:absolute;bottom:-6px;left:38px;width:12px;height:12px;background:#fff;
+    transform:rotate(45deg);
+    box-shadow:1px 1px 0 rgba(0,0,0,.08);border-radius:0 0 2px 0;
+  }
+  .img-dd-menu button{
+    display:flex;align-items:center;gap:10px;width:100%;
+    padding:10px 12px;border:none;background:none;border-radius:10px;
+    font-size:14px;color:var(--ink);text-align:left;cursor:pointer;font-family:inherit;
+  }
+  .img-dd-menu button:active{background:var(--blue-soft);}
+  .img-dd-menu button svg{color:var(--ink-3);flex:none;}
+
   /* toast */
   .toast{
     position:absolute;left:50%;bottom:210px;transform:translate(-50%,20px);z-index:90;
@@ -374,7 +409,28 @@
         <!-- toolbar -->
         <div class="toolbar" id="toolbar">
           <span class="tb-btn" title="文本"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 6h14M5 12h9M5 18h12"/></svg></span>
-          <span class="tb-btn" title="图片"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M4 18l5-5 4 4 3-3 4 4"/></svg></span>
+          <div class="tb-img-split" id="imgSplit">
+            <span class="tb-btn tb-img-main" title="图片" onclick="imgMenuUpload()">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M4 18l5-5 4 4 3-3 4 4"/></svg>
+            </span>
+            <span class="tb-img-arrow" id="imgArrow" title="插图方式" onclick="toggleImgMenu(event)">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </span>
+            <div class="img-dd-menu" id="imgDdMenu">
+              <button onclick="imgMenuUpload()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                上传图片
+              </button>
+              <button onclick="imgMenuAiGen()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h.01M15 9h.01"/><path d="M8 15c1.5-2 6.5-2 8 0"/></svg>
+                AI 生图
+              </button>
+              <button onclick="imgMenuAuto()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4"/><path d="M13 3l2.5 5.5L21 11l-5.5 2.5L13 19l-2.5-5.5L5 11l5.5-2.5z"/></svg>
+                一键配图
+              </button>
+            </div>
+          </div>
           <span class="tb-btn ai" id="btnEntry" title="AI 配图" onclick="openMaskFlow()">
             <span class="pulse"></span>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="13" height="13" rx="3"/><path d="M8 21h11a2 2 0 0 0 2-2V8"/><path d="M8.5 13.2l2-2.4 2.3 2.7 1.6-1.8 1.6 1.9"/><circle cx="8.6" cy="9" r="1" fill="currentColor" stroke="none"/></svg>
@@ -656,8 +712,56 @@ function toggleMask(show){
   }
 }
 
+/* ================= toolbar image dropdown menu ================= */
+function toggleImgMenu(e){
+  e.stopPropagation();
+  const m=$('imgDdMenu'), a=$('imgArrow');
+  m.classList.toggle('show');
+  a.classList.toggle('open');
+}
+function closeImgMenu(){
+  $('imgDdMenu')?.classList.remove('show');
+  $('imgArrow')?.classList.remove('open');
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#imgSplit')) closeImgMenu();
+});
+function imgMenuUpload(){
+  closeImgMenu();
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*';
+  inp.onchange=()=>{
+    const f=inp.files&&inp.files[0];
+    if(!f) return;
+    const reader=new FileReader();
+    reader.onload=()=>insertUploadedImage(reader.result, f.name);
+    reader.readAsDataURL(f);
+  };
+  inp.click();
+}
+function insertUploadedImage(dataUrl, fileName){
+  const title=getEditorTitle(), body=getEditorBody();
+  if(!body){ toastMsg('请先输入正文内容'); return; }
+  const blocks=body.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+  let html=title?`<div class="art-title">${esc(title)}</div>`:'';
+  blocks.forEach(b=>{ html+=`<p class="art-p">${esc(b)}</p>`; });
+  html+=`<img class="art-img" src="${dataUrl}" onclick="event.stopPropagation();showImgPop(this,event)" style="margin-top:16px;">`;
+  $('editorPlaceholder').innerHTML=html;
+  toastMsg('图片已插入正文');
+  const img=document.querySelector('.art-img');
+  if(img) gsap.fromTo(img,{scale:.92,opacity:.4},{scale:1,opacity:1,duration:.6,ease:'power2.out'});
+}
+function imgMenuAiGen(){
+  closeImgMenu();
+  openMaskFlow('single');
+}
+function imgMenuAuto(){
+  closeImgMenu();
+  openMaskFlow();
+}
+
 /* ========== 主流程：真实调用 DeepSeek 分析用户输入的文章 ========== */
-function openMaskFlow(){
+function openMaskFlow(mode){
   const title = getEditorTitle();
   const body = sanitizeDraft(getEditorBody());
   if(!body){ toastMsg('请先在编辑页输入文章内容'); return; }
@@ -676,14 +780,27 @@ function openMaskFlow(){
     if(!ok) throw new Error(d.error || '分析失败');
     sessionId = d.session_id;
     analysis = d;
-    items = (d.insertions||[]).map((ins,i)=>({
+    let allItems = (d.insertions||[]).map((ins,i)=>({
       idx:i,
       id:ins.id,
       ph:`【为大大推荐在这里插入一张${ins.image_type}的图片哦～】`,
       name:ins.image_type,
       prompt:ins.prompt || ''
     }));
-    $('modalSub').textContent = `已识别 ${items.length} 处可插图位置`;
+    /* single 模式（AI生图）：只保留第一个插图位 */
+    if(mode==='single' && allItems.length>0){
+      allItems = [allItems[0]];
+      let seen=0;
+      analysis = Object.assign({}, d, {
+        article: cleanArticle(d.article).split(/\n+/).map(s=>s.trim()).filter(Boolean)
+          .filter(s=>{
+            if(blockIsPlaceholder(s)){ seen++; return seen<=1; }
+            return true;
+          }).join('\n')
+      });
+    }
+    items = allItems;
+    $('modalSub').textContent = mode==='single' ? 'AI 生图 · 单张生成' : `已识别 ${items.length} 处可插图位置`;
     if(!items.length){ showEmpty(); return; }
     showCardsInMask();
     /* 默认 AI 自动逐张生成（真实 Seedream） */

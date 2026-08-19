@@ -199,6 +199,55 @@
   .img-dd-menu button:active{background:var(--blue-soft);}
   .img-dd-menu button svg{color:var(--ink-3);flex:none;}
 
+  /* AI 生图底部升起面板 */
+  .ai-gen-panel{
+    flex:none;
+    max-height:0;
+    overflow:hidden;
+    background:#fff;
+    transition:max-height .32s cubic-bezier(.2,.8,.2,1),border-color .2s;
+    border-top:1px solid transparent;
+  }
+  .ai-gen-panel.show{max-height:246px;border-top-color:var(--line);}
+  .ai-gen-card{
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    height:246px;
+    box-sizing:border-box;
+    position:relative;
+  }
+  .ai-gen-card textarea{
+    width:100%;
+    height:140px;
+    border:1.5px solid var(--blue);
+    border-radius:16px;
+    padding:14px;
+    font-size:15px;
+    line-height:1.5;
+    resize:none;
+    outline:none;
+    color:var(--ink);
+    font-family:var(--font-ui);
+    background:#fff;
+  }
+  .ai-gen-card textarea::placeholder{color:#B8BDC8;}
+  .ai-gen-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .ai-gen-chips{display:flex;gap:8px;}
+  .ai-gen-select{
+    position:absolute;bottom:62px;left:16px;background:#fff;border-radius:14px;
+    box-shadow:0 12px 38px rgba(10,15,30,.16),0 0 0 1px rgba(0,0,0,.08);
+    padding:6px;min-width:112px;display:none;z-index:85;
+  }
+  .ai-gen-select.show{display:block;animation:ddPop .2s ease;}
+  .ai-gen-select button{
+    display:block;width:100%;
+    padding:10px 12px;border:none;background:none;border-radius:10px;
+    font-size:14px;color:var(--ink);text-align:left;cursor:pointer;font-family:inherit;
+  }
+  .ai-gen-select button:active{background:var(--blue-soft);}
+
   /* toast */
   .toast{
     position:absolute;left:50%;bottom:210px;transform:translate(-50%,20px);z-index:90;
@@ -441,6 +490,39 @@
           <span class="tb-count" id="wordCount">0</span>
         </div>
 
+        <!-- AI 生图面板：点击 toolbar AI 生图后从底部升起 -->
+        <div class="ai-gen-panel" id="aiGenPanel">
+          <div class="ai-gen-card">
+            <textarea id="aiGenPrompt" placeholder="请描述你想要配图的内容"></textarea>
+            <div class="ai-gen-foot">
+              <div class="ai-gen-chips">
+                <span class="exp-chip" id="aiGenStyleChip" onclick="toggleAiGenSelect('style')">
+                  纪实摄影 <svg viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+                <span class="exp-chip" id="aiGenRatioChip" onclick="toggleAiGenSelect('ratio')">
+                  1:1 <svg viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+              </div>
+              <button class="btn-gen" id="aiGenBtn" onclick="submitAiGen()">生成图片</button>
+            </div>
+
+            <!-- 风格下拉 -->
+            <div class="ai-gen-select" id="aiGenStyleSelect">
+              <button onclick="setAiGenOption('style','纪实摄影')">纪实摄影</button>
+              <button onclick="setAiGenOption('style','清新插画')">清新插画</button>
+              <button onclick="setAiGenOption('style','3D渲染')">3D渲染</button>
+              <button onclick="setAiGenOption('style','扁平矢量')">扁平矢量</button>
+            </div>
+            <!-- 比例下拉 -->
+            <div class="ai-gen-select" id="aiGenRatioSelect">
+              <button onclick="setAiGenOption('ratio','1:1')">1:1</button>
+              <button onclick="setAiGenOption('ratio','4:3')">4:3</button>
+              <button onclick="setAiGenOption('ratio','16:9')">16:9</button>
+              <button onclick="setAiGenOption('ratio','3:4')">3:4</button>
+            </div>
+          </div>
+        </div>
+
         <!-- image adjust popover -->
         <div class="img-pop" id="imgPop">
           <button onclick="toastMsg('已进入换图流程')">换一张</button>
@@ -519,7 +601,16 @@ function apiAnalyze(payload){
     .then(r=>r.json().then(d=>({ok:r.ok, d})));
 }
 function apiGenerateOne(payload){
-  if(DEMO) return new Promise(res=>setTimeout(()=>res({ok:true, d:{url:demoSvg((payload.id||1)-1)}}), 2000));
+  if(DEMO){
+    // 直接 prompt 生成（toolbar AI 生图）也返回示例图
+    const idx = payload.id ? (payload.id-1) : 0;
+    return new Promise(res=>setTimeout(()=>res({ok:true, d:{url:demoSvg(idx)}}), 2000));
+  }
+  // 直接 prompt 生成（toolbar AI 生图入口，不依赖 analyze session）
+  if(payload.prompt){
+    return fetch('/api/generate_direct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      .then(r=>r.json().then(d=>({ok:r.ok, d})));
+  }
   return fetch('/api/generate_one',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     .then(r=>r.json().then(d=>({ok:r.ok, d})));
 }
@@ -725,9 +816,10 @@ function closeImgMenu(){
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('#imgSplit')) closeImgMenu();
+  if(aiGenOpen && !e.target.closest('#aiGenPanel') && !e.target.closest('#imgSplit')) closeAiGenPanel();
 });
 function imgMenuUpload(){
-  closeImgMenu();
+  closeImgMenu(); closeAiGenPanel();
   const inp=document.createElement('input');
   inp.type='file'; inp.accept='image/*';
   inp.onchange=()=>{
@@ -751,12 +843,61 @@ function insertUploadedImage(dataUrl, fileName){
   const img=document.querySelector('.art-img');
   if(img) gsap.fromTo(img,{scale:.92,opacity:.4},{scale:1,opacity:1,duration:.6,ease:'power2.out'});
 }
+/* ================= toolbar AI 生图面板 ================= */
+let aiGenOpen=false, aiGenStyle='纪实摄影', aiGenRatio='1:1';
 function imgMenuAiGen(){
   closeImgMenu();
-  openMaskFlow('single');
+  if(aiGenOpen){ closeAiGenPanel(); return; }
+  const p=$('aiGenPanel');
+  p.classList.add('show');
+  aiGenOpen=true;
+  $('aiGenPrompt').focus();
+}
+function closeAiGenPanel(){
+  $('aiGenPanel').classList.remove('show');
+  closeAiGenSelects();
+  aiGenOpen=false;
+}
+function closeAiGenSelects(){
+  $('aiGenStyleSelect').classList.remove('show');
+  $('aiGenRatioSelect').classList.remove('show');
+}
+function toggleAiGenSelect(type){
+  closeAiGenSelects();
+  const el=$(type==='style'?'aiGenStyleSelect':'aiGenRatioSelect');
+  el.classList.add('show');
+}
+function setAiGenOption(type,value){
+  if(type==='style'){
+    aiGenStyle=value;
+    $('aiGenStyleChip').innerHTML=esc(value)+' <svg viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }else{
+    aiGenRatio=value;
+    $('aiGenRatioChip').innerHTML=esc(value)+' <svg viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  closeAiGenSelects();
+}
+const ratioToSize={'1:1':'1920x1920','4:3':'1920x1440','16:9':'1920x1080','3:4':'1440x1920'};
+function submitAiGen(){
+  const prompt=$('aiGenPrompt').value.trim();
+  if(!prompt){ toastMsg('请先描述你想要配图的内容'); return; }
+  const btn=$('aiGenBtn');
+  btn.disabled=true; btn.textContent='生成中…';
+  const fullPrompt = `${aiGenStyle}风格，${prompt}`;
+  apiGenerateOne({prompt:fullPrompt, size:ratioToSize[aiGenRatio]||'1920x1920'})
+  .then(({ok,d})=>{
+    btn.disabled=false; btn.textContent='生成图片';
+    if(!ok) throw new Error(d.error || '生成失败');
+    insertUploadedImage(d.url, 'ai-generated.png');
+    closeAiGenPanel();
+    $('aiGenPrompt').value='';
+  }).catch(err=>{
+    btn.disabled=false; btn.textContent='生成图片';
+    toastMsg(err.message || '图片生成失败');
+  });
 }
 function imgMenuAuto(){
-  closeImgMenu();
+  closeImgMenu(); closeAiGenPanel();
   openMaskFlow();
 }
 

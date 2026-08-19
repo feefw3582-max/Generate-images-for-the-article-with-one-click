@@ -369,6 +369,24 @@ def api_generate_one():
         return jsonify({'error': f'插图 {ins_id} 生成失败：{e}'}), 500
 
 
+@app.route('/api/generate_direct', methods=['POST'])
+def api_generate_direct():
+    """直接根据 prompt 生成单张图片，不依赖 analyze session（toolbar AI 生图入口）。"""
+    data = request.json
+    prompt = (data.get('prompt') or '').strip()
+    size = data.get('size', '1920x1920')
+    api_key = (data.get('seedream_key') or '').strip() or os.environ.get('SEEDREAM_API_KEY', '')
+    if not prompt:
+        return jsonify({'error': '缺少 prompt'}), 400
+    if not api_key:
+        return jsonify({'error': '缺少 Seedream API Key'}), 400
+    try:
+        url = _generate_image(prompt, api_key, size=size)
+        return jsonify({'url': url})
+    except Exception as e:
+        return jsonify({'error': f'图片生成失败：{e}'}), 500
+
+
 @app.route('/api/upload_one', methods=['POST'])
 def api_upload_one():
     """新工作流：给单个插图位上传一张本地图片。"""

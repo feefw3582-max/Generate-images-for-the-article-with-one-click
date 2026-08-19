@@ -182,11 +182,14 @@
   .sug-phimg{
     position:relative;height:150px;border-radius:10px;margin:0 0 12px;overflow:hidden;
     border:1.5px dashed rgba(5,109,232,.32);background:linear-gradient(180deg,#F8FBFF,#EEF4FE);
-    display:flex;flex-direction:column;justify-content:space-between;align-items:center;
+    display:flex;flex-direction:column;
     color:var(--blue);text-align:center;
   }
+  .phimg-main{
+    position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+  }
   .phimg-visual{
-    flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;width:100%;
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;width:100%;
   }
   .phimg-visual svg{width:27px;height:27px;opacity:.5;}
   .phimg-visual .ph-main{font-size:13px;font-weight:600;color:var(--blue-deep);}
@@ -195,13 +198,13 @@
     width:100%;padding:10px 12px;text-align:left;font-size:13px;line-height:1.55;color:var(--blue-deep);
     background:linear-gradient(180deg, rgba(232,241,254,.90), rgba(232,241,254,.96));
     border-top:1px solid rgba(5,109,232,.12);
+    position:relative;z-index:4;
   }
-  .sug-phimg.ready{border:0;background:#EEF1F6;}
+  .sug-phimg.ready{border:0;background:#EEF1F6;min-height:150px;}
   .sug-phimg.gen{border-style:solid;border-color:rgba(5,109,232,.18);position:relative;}
   .gen-overlay{
     position:absolute;inset:0;z-index:3;
-    background:rgba(248,251,255,.86);
-    backdrop-filter:blur(1.5px);
+    background:rgba(248,251,255,.72);
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
   }
   .gen-overlay-inner{display:flex;align-items:center;gap:8px;}
@@ -408,14 +411,13 @@ function cardHTML(it, st){
   const open = !!promptOpen[it.idx];
   const busy = (st==='generating'||st==='uploading');
 
-  /* placeholder image area — always visible so users know an image slot exists */
-  const idlePhimg = `
+  /* placeholder image area — idle/generating/uploading 都保留占位图视觉 + 描述占位字 */
+  const idleVisual = `
     <div class="phimg-visual">
       ${imgIcon}
-      <span class="ph-main">图片生成中<span class="bouncy-dots"><span></span><span></span><span></span></span></span>
+      <span class="ph-main">等待配图</span>
       <span class="ph-sub">AI 生图或上传图片后，图片显示在这里</span>
-    </div>
-    <div class="sug-phimg-caption">${esc(it.ph)}</div>`;
+    </div>`;
 
   let phimg;
   if(st==='ready' && imagesReady[it.idx]){
@@ -428,14 +430,20 @@ function cardHTML(it, st){
     const label = isGen ? '图片生成中' : '正在读取相册';
     const dots = '<span class="bouncy-dots"><span></span><span></span><span></span></span>';
     phimg = `<div class="sug-phimg gen">
-               ${idlePhimg}
-               <div class="gen-overlay">
-                 <div class="gen-overlay-inner"><div class="spinner2"></div><span class="gen-label">${label}${dots}<span class="gen-pct" id="st-${it.idx}">0%</span></span></div>
-                 <div class="sug-progress"><i id="bar-${it.idx}"></i></div>
+               <div class="phimg-main">
+                 ${idleVisual}
+                 <div class="gen-overlay">
+                   <div class="gen-overlay-inner"><div class="spinner2"></div><span class="gen-label">${label}${dots}<span class="gen-pct" id="st-${it.idx}">0%</span></span></div>
+                   <div class="sug-progress"><i id="bar-${it.idx}"></i></div>
+                 </div>
                </div>
+               <div class="sug-phimg-caption">${esc(it.ph)}</div>
              </div>`;
   }else{
-    phimg = `<div class="sug-phimg">${idlePhimg}</div>`;
+    phimg = `<div class="sug-phimg">
+               <div class="phimg-main">${idleVisual}</div>
+               <div class="sug-phimg-caption">${esc(it.ph)}</div>
+             </div>`;
   }
 
   /* hidden prompt input panel — 豆包式输入框 + 风格/比例 + 生成 */
@@ -494,20 +502,30 @@ function splitBlocks(article){
   return (article||'').split(/\n+/).map(s=>s.trim()).filter(Boolean);
 }
 function blockIsPlaceholder(b){
-  return /^【为大大推荐在这里插入一张.+?的图片哦～】$/.test(b) || /^@image#\d+:.+/.test(b);
+  return /^【为大大推荐在这里插入一张.+?的图片哦～】$/.test(b) || /^@image#\d+:.*/.test(b);
 }
 function sanitizeDraft(text){
   // 清理剪贴板/其他编辑器带进来的内部图片占位符，避免被当成普通文字显示
-  return String(text||'').replace(/@image#\d+:[^\n]*/g, '').replace(/\n{3,}/g, '\n\n').trim();
+  return String(text||'')
+    .replace(/@image#\d+:[^\n]*\n?/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+function cleanArticle(article){
+  // 后端返回的文稿若仍残留 @image# 占位符，直接抹掉
+  return String(article||'').replace(/\n*\s*@image#\d+:[^\n]*\s*\n*/g, '\n\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 function renderArticleBlocks(article){
-  const blocks = splitBlocks(article);
+  const blocks = splitBlocks(cleanArticle(article));
   let html = '';
   let k = 0;
   blocks.forEach(b=>{
     if(blockIsPlaceholder(b)){
       const it = items[k++];
-      if(it) html += `<div class="ph-card" id="ph-card-${it.idx}" data-i="${it.idx}">${cardHTML(it, genState[it.idx]||'idle')}</div>`;
+      if(it){
+        html += `<div class="ph-card" id="ph-card-${it.idx}" data-i="${it.idx}">${cardHTML(it, genState[it.idx]||'idle')}</div>`;
+      }
+      // 如果是孤立的 @image# 占位符且没有对应 item，直接丢弃不显示
     }else if(b.startsWith('### ')) html += `<div class="art-title" style="font-size:17px">${esc(b.slice(4))}</div>`;
     else if(b.startsWith('## ')) html += `<div class="art-title" style="font-size:18px">${esc(b.slice(3))}</div>`;
     else if(b.startsWith('# ')) html += `<div class="art-title">${esc(b.slice(2))}</div>`;

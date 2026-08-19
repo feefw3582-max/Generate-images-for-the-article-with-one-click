@@ -233,20 +233,32 @@
     background:#fff;
   }
   .ai-gen-card textarea::placeholder{color:#B8BDC8;}
-  .ai-gen-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .ai-gen-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative;}
   .ai-gen-chips{display:flex;gap:8px;}
-  .ai-gen-select{
-    position:absolute;bottom:62px;left:16px;background:#fff;border-radius:14px;
-    box-shadow:0 12px 38px rgba(10,15,30,.16),0 0 0 1px rgba(0,0,0,.08);
-    padding:6px;min-width:112px;display:none;z-index:85;
+  .ai-gen-chip-wrap{position:relative;display:flex;}
+  .ai-gen-card .exp-chip{
+    height:32px;border-radius:999px;border:0;background:#F2F7FF;color:var(--blue);
+    font-size:13px;font-weight:500;font-family:var(--font-ui);padding:0 12px;
+    display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;
   }
-  .ai-gen-select.show{display:block;animation:ddPop .2s ease;}
-  .ai-gen-select button{
+  .ai-gen-card .exp-chip svg{width:10px;height:10px;}
+  .ai-gen-float-select{
+    position:fixed;background:#fff;border-radius:14px;
+    box-shadow:0 12px 38px rgba(10,15,30,.18),0 0 0 1px rgba(0,0,0,.08);
+    padding:6px;min-width:120px;display:none;z-index:200;
+    animation:ddPop .2s ease;
+  }
+  .ai-gen-float-select::after{
+    content:'';position:absolute;bottom:-6px;left:var(--arrow-left,50%);transform:translateX(-50%) rotate(45deg);
+    width:12px;height:12px;background:#fff;box-shadow:1px 1px 0 rgba(0,0,0,.08);
+  }
+  .ai-gen-float-select.show{display:block;}
+  .ai-gen-float-select button{
     display:block;width:100%;
     padding:10px 12px;border:none;background:none;border-radius:10px;
     font-size:14px;color:var(--ink);text-align:left;cursor:pointer;font-family:inherit;
   }
-  .ai-gen-select button:active{background:var(--blue-soft);}
+  .ai-gen-float-select button:active{background:var(--blue-soft);}
 
   /* toast */
   .toast{
@@ -505,21 +517,6 @@
               </div>
               <button class="btn-gen" id="aiGenBtn" onclick="submitAiGen()">生成图片</button>
             </div>
-
-            <!-- 风格下拉 -->
-            <div class="ai-gen-select" id="aiGenStyleSelect">
-              <button onclick="setAiGenOption('style','纪实摄影')">纪实摄影</button>
-              <button onclick="setAiGenOption('style','清新插画')">清新插画</button>
-              <button onclick="setAiGenOption('style','3D渲染')">3D渲染</button>
-              <button onclick="setAiGenOption('style','扁平矢量')">扁平矢量</button>
-            </div>
-            <!-- 比例下拉 -->
-            <div class="ai-gen-select" id="aiGenRatioSelect">
-              <button onclick="setAiGenOption('ratio','1:1')">1:1</button>
-              <button onclick="setAiGenOption('ratio','4:3')">4:3</button>
-              <button onclick="setAiGenOption('ratio','16:9')">16:9</button>
-              <button onclick="setAiGenOption('ratio','3:4')">3:4</button>
-            </div>
           </div>
         </div>
 
@@ -537,6 +534,9 @@
     </div>
   </section>
 </main>
+
+<!-- AI 生图面板下拉（fixed，避免被面板 overflow 裁剪） -->
+<div class="ai-gen-float-select" id="aiGenFloatSelect"></div>
 
 <script>
 /* ================= state ================= */
@@ -816,8 +816,11 @@ function closeImgMenu(){
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('#imgSplit')) closeImgMenu();
-  if(aiGenOpen && !e.target.closest('#aiGenPanel') && !e.target.closest('#imgSplit')) closeAiGenPanel();
+  if(aiGenOpen && !e.target.closest('#aiGenPanel') && !e.target.closest('#aiGenFloatSelect') && !e.target.closest('#imgSplit')) closeAiGenPanel();
+  if(aiGenFloatType && !e.target.closest('#aiGenFloatSelect') && !e.target.closest('.ai-gen-chips')) closeAiGenSelects();
 });
+window.addEventListener('resize', closeAiGenSelects);
+window.addEventListener('scroll', closeAiGenSelects, true);
 function imgMenuUpload(){
   closeImgMenu(); closeAiGenPanel();
   const inp=document.createElement('input');
@@ -859,13 +862,42 @@ function closeAiGenPanel(){
   aiGenOpen=false;
 }
 function closeAiGenSelects(){
-  $('aiGenStyleSelect').classList.remove('show');
-  $('aiGenRatioSelect').classList.remove('show');
+  $('aiGenFloatSelect').classList.remove('show');
+  aiGenFloatType=null;
 }
+let aiGenFloatType=null;
 function toggleAiGenSelect(type){
-  closeAiGenSelects();
-  const el=$(type==='style'?'aiGenStyleSelect':'aiGenRatioSelect');
-  el.classList.add('show');
+  const dd=$('aiGenFloatSelect');
+  if(aiGenFloatType===type && dd.classList.contains('show')){ closeAiGenSelects(); return; }
+  aiGenFloatType=type;
+  const chip=$(type==='style'?'aiGenStyleChip':'aiGenRatioChip');
+  const opts= type==='style'
+    ? ['纪实摄影','清新插画','3D渲染','扁平矢量']
+    : ['1:1','4:3','16:9','3:4'];
+  const mapVal= type==='style' ? aiGenStyle : aiGenRatio;
+  dd.innerHTML = opts.map(v=>
+    `<button onclick="setAiGenOption('${type}','${v}')" style="${v===mapVal?'background:var(--blue-soft);color:var(--blue);font-weight:600;':''}">${v}</button>`
+  ).join('');
+  dd.classList.add('show');
+  requestAnimationFrame(()=>positionAiGenFloat(chip));
+}
+function positionAiGenFloat(chip){
+  const dd=$('aiGenFloatSelect');
+  if(!dd.classList.contains('show')) return;
+  const r=chip.getBoundingClientRect();
+  const ddRect=dd.getBoundingClientRect();
+  const vw=window.innerWidth, vh=window.innerHeight;
+  let left=r.left + r.width/2 - ddRect.width/2;
+  left = Math.max(8, Math.min(left, vw - ddRect.width - 8));
+  let top = r.top - ddRect.height - 8;
+  // 如果上方放不下，则放到下方；如果下方也放不下，则贴到可视区顶部
+  if(top < 8) top = r.bottom + 8;
+  if(top + ddRect.height > vh - 8) top = Math.max(8, vh - ddRect.height - 8);
+  dd.style.left=left+'px';
+  dd.style.top=top+'px';
+  // 调整小三角指向中心
+  const arrowCenter = r.left + r.width/2 - left;
+  dd.style.setProperty('--arrow-left', Math.max(12, Math.min(ddRect.width-12, arrowCenter))+'px');
 }
 function setAiGenOption(type,value){
   if(type==='style'){

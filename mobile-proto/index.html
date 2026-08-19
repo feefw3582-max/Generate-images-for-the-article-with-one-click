@@ -356,9 +356,7 @@
                 <span class="modal-close" title="关闭遮罩" onclick="toggleMask(false)">&#10005;</span>
               </div>
               <div class="modal-body" id="modalBody"></div>
-              <div class="modal-foot" id="modalFoot">
-                <button class="btn-solid" style="flex:1;" onclick="insertAll()">插入配图到正文</button>
-              </div>
+              <div class="modal-foot" id="modalFoot"></div>
             </div>
           </div>
         </div>
@@ -561,19 +559,7 @@ function toastMsg(msg){
 
 /* ================= modal foot insert bar ================= */
 function updateInsertBar(){
-  const foot=$('modalFoot');
-  const readyCount = items.filter(it=>genState[it.idx]==='ready').length;
-  const btn = foot.querySelector('button');
-  if(readyCount>0){
-    btn.textContent = readyCount===items.length
-      ? `插入 ${readyCount} 张配图到正文`
-      : `插入已配好的 ${readyCount} 张（共 ${items.length}）`;
-    btn.style.display='block';
-    btn.disabled=false;
-  }else{
-    btn.textContent='插入配图到正文';
-    btn.style.display='none';
-  }
+  // 底部插入按钮已删除，此函数保留为空函数避免调用处报错
 }
 
 /* ================= mask overlay ================= */
@@ -656,7 +642,7 @@ function showCardsInMask(){
     const banner = document.createElement('div');
     banner.className='sug-banner';
     banner.innerHTML=`
-      <h5>已为您识别 ${items.length} 处可插图位置</h5>
+      <h5>插入的图片会自动保存在原文对应位置中</h5>
       <p>AI 正在自动生成配图，完成后可重新生成或上传替换</p>`;
     $('modalBody').prepend(banner);
   }

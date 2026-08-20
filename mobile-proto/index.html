@@ -177,17 +177,22 @@
   }
   .tb-img-main:active{background:var(--blue-soft);}
   .img-dd-menu{
-    position:absolute;left:calc(100% + 12px);top:50%;transform:translateY(-50%);bottom:auto;z-index:80;
+    position:fixed;top:0;transform:translateY(-50%);z-index:80;
     background:#fff;border-radius:16px;
     box-shadow:0 14px 44px rgba(10,15,30,.2),0 0 0 1px rgba(0,0,0,.08);
     padding:7px;min-width:156px;display:none;
+    --arrow-pos:-6px;
   }
   .img-dd-menu.show{display:block;animation:ddPopH .2s ease;}
   @keyframes ddPopH{from{opacity:0;transform:translateY(-50%) translateX(-6px);}to{opacity:1;transform:translateY(-50%) translateX(0);}}
+  .img-dd-menu.dd-left{--arrow-pos:calc(100% + 6px);}
   .img-dd-menu::after{
-    content:'';position:absolute;top:50%;left:-6px;width:12px;height:12px;background:#fff;
+    content:'';position:absolute;top:50%;left:var(--arrow-pos);width:12px;height:12px;background:#fff;
     transform:translateY(-50%) rotate(45deg);
     box-shadow:-1px 1px 0 rgba(0,0,0,.08);border-radius:0 0 0 2px;
+  }
+  .img-dd-menu.dd-left::after{
+    box-shadow:1px -1px 0 rgba(0,0,0,.08);border-radius:0 2px 0 0;
   }
   .img-dd-menu button{
     display:flex;align-items:center;gap:10px;width:100%;
@@ -822,7 +827,21 @@ function toggleMask(show){
 /* ================= toolbar image dropdown menu ================= */
 function toggleImgMenu(e){
   e.stopPropagation();
-  $('imgDdMenu').classList.toggle('show');
+  const menu=$('imgDdMenu');
+  const rect=$('imgSplit').getBoundingClientRect();
+  const vw=window.innerWidth;
+  const menuW=menu.offsetWidth||156;
+  const gap=12;
+  menu.style.top=(rect.top+rect.height/2)+'px';
+  // 右侧空间够则向右展开，否则向左展开避免跑出屏幕
+  if(vw - rect.right - gap >= menuW){
+    menu.classList.add('dd-right'); menu.classList.remove('dd-left');
+    menu.style.left=(rect.right+gap)+'px'; menu.style.right='auto';
+  }else{
+    menu.classList.add('dd-left'); menu.classList.remove('dd-right');
+    menu.style.left='auto'; menu.style.right=(vw-rect.left+gap)+'px';
+  }
+  menu.classList.toggle('show');
 }
 function closeImgMenu(){
   $('imgDdMenu')?.classList.remove('show');

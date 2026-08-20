@@ -180,14 +180,14 @@
     position:fixed;top:0;transform:translateY(-50%);z-index:80;
     background:#fff;border-radius:16px;
     box-shadow:0 14px 44px rgba(10,15,30,.2),0 0 0 1px rgba(0,0,0,.08);
-    padding:7px;min-width:156px;display:none;
+    padding:7px;width:156px;box-sizing:border-box;display:none;
   }
   .img-dd-menu.show{display:block;animation:ddPopH .2s ease;}
   @keyframes ddPopH{from{opacity:0;transform:translateY(-50%) translateX(-6px);}to{opacity:1;transform:translateY(-50%) translateX(0);}}
   .img-dd-menu::after{
-    content:'';position:absolute;top:50%;left:-6px;width:12px;height:12px;background:#fff;
+    content:'';position:absolute;top:50%;left:-7px;width:14px;height:14px;background:#fff;
     transform:translateY(-50%) rotate(45deg);
-    box-shadow:-1px 1px 0 rgba(0,0,0,.08);border-radius:0 0 0 2px;
+    box-shadow:-2px 2px 0 rgba(0,0,0,.12);border-radius:0 0 0 3px;
   }
   .img-dd-menu button{
     display:flex;align-items:center;gap:10px;width:100%;
@@ -825,18 +825,14 @@ function toggleImgMenu(e){
   const menu=$('imgDdMenu');
   const rect=$('imgSplit').getBoundingClientRect();
   const vw=window.innerWidth;
-  const gap=12, pad=12;
+  const gap=12, pad=12, menuW=156;
   menu.style.top=(rect.top+rect.height/2)+'px';
   menu.classList.remove('dd-left');
   if(!menu.classList.contains('show')){
-    // 测量真实宽度后再定位，避免被屏幕截断
-    const savedVis=menu.style.visibility, savedDisp=menu.style.display;
-    menu.style.visibility='hidden'; menu.style.display='block';
-    const menuW=menu.offsetWidth||156;
-    menu.style.visibility=savedVis; menu.style.display=savedDisp;
+    // 固定右侧展开，若会超出屏幕右边界则整体左移贴边
     let left=rect.right+gap;
-    const maxLeft=vw-pad-menuW;
-    if(left>maxLeft) left=maxLeft;
+    if(left+menuW > vw-pad) left=vw-pad-menuW;
+    if(left < rect.right) left=rect.right; // 宁可贴住 icon 也不跑到左侧
     menu.style.left=left+'px'; menu.style.right='auto';
   }
   menu.classList.toggle('show');

@@ -972,7 +972,6 @@ function openMaskFlow(mode){
   $('modalBody').innerHTML = `<div class="empty-state">
     <div class="empty-emoji">🔍</div>
     <h4>正在分析你的文章…</h4>
-    <p>DeepSeek 正在识别可插图位置<br>并生成每张配图的提示词</p>
   </div>`;
   apiAnalyze({ form: title || '文章', draft: body })
   .then(({ok,d})=>{

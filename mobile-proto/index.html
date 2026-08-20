@@ -176,18 +176,24 @@
     font-weight:700;letter-spacing:.3px;pointer-events:none;
   }
   .tb-img-main:active{background:var(--blue-soft);}
+  .tb-img-chevron{
+    width:14px;height:40px;display:flex;align-items:center;justify-content:center;
+    color:var(--ink-3);cursor:pointer;margin-left:1px;
+  }
+  .tb-img-chevron svg{display:block;transition:transform .22s ease;}
+  .tb-img-chevron.open svg{transform:rotate(180deg);}
   .img-dd-menu{
-    position:fixed;top:0;transform:translateY(-50%);z-index:80;
+    position:absolute;bottom:calc(100% + 10px);left:0;z-index:80;
     background:#fff;border-radius:16px;
     box-shadow:0 14px 44px rgba(10,15,30,.2),0 0 0 1px rgba(0,0,0,.08);
-    padding:7px;width:156px;box-sizing:border-box;display:none;
+    padding:7px;min-width:160px;box-sizing:border-box;display:none;
   }
-  .img-dd-menu.show{display:block;animation:ddPopH .2s ease;}
-  @keyframes ddPopH{from{opacity:0;transform:translateY(-50%) translateX(-6px);}to{opacity:1;transform:translateY(-50%) translateX(0);}}
+  .img-dd-menu.show{display:block;animation:ddPopV .2s ease;}
+  @keyframes ddPopV{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
   .img-dd-menu::after{
-    content:'';position:absolute;top:50%;left:-7px;width:14px;height:14px;background:#fff;
-    transform:translateY(-50%) rotate(45deg);
-    box-shadow:-2px 2px 0 rgba(0,0,0,.12);border-radius:0 0 0 3px;
+    content:'';position:absolute;bottom:-6px;left:21px;width:12px;height:12px;background:#fff;
+    transform:rotate(45deg);
+    box-shadow:1px 1px 0 rgba(0,0,0,.08);border-radius:0 0 2px 0;
   }
   .img-dd-menu button{
     display:flex;align-items:center;gap:10px;width:100%;
@@ -480,6 +486,9 @@
             <span class="tb-btn tb-img-main" title="图片" onclick="toggleImgMenu(event)">
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M4 18l5-5 4 4 3-3 4 4"/></svg>
               <span class="ai-badge">AI</span>
+            </span>
+            <span class="tb-img-chevron" id="imgChevron" title="更多插图方式" onclick="toggleImgMenu(event)">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
             </span>
             <div class="img-dd-menu" id="imgDdMenu">
               <button onclick="imgMenuUpload()">
@@ -823,22 +832,13 @@ function toggleMask(show){
 function toggleImgMenu(e){
   e.stopPropagation();
   const menu=$('imgDdMenu');
-  const rect=$('imgSplit').getBoundingClientRect();
-  const vw=window.innerWidth;
-  const gap=12, pad=12, menuW=156;
-  menu.style.top=(rect.top+rect.height/2)+'px';
-  menu.classList.remove('dd-left');
-  if(!menu.classList.contains('show')){
-    // 固定右侧展开，若会超出屏幕右边界则整体左移贴边
-    let left=rect.right+gap;
-    if(left+menuW > vw-pad) left=vw-pad-menuW;
-    if(left < rect.right) left=rect.right; // 宁可贴住 icon 也不跑到左侧
-    menu.style.left=left+'px'; menu.style.right='auto';
-  }
-  menu.classList.toggle('show');
+  const chev=$('imgChevron');
+  const show=menu.classList.toggle('show');
+  chev.classList.toggle('open', show);
 }
 function closeImgMenu(){
   $('imgDdMenu')?.classList.remove('show');
+  $('imgChevron')?.classList.remove('open');
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('#imgSplit')) closeImgMenu();
